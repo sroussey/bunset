@@ -50,9 +50,20 @@ Commit format:
   Only sections listed in --sections (or config) are included in the changelog.
   Default sections: feat, fix, perf.
 
-Config:
+Config file (.bunset.toml):
   Place a .bunset.toml in your project root to set persistent defaults.
-  CLI flags always override config values. See README for format.`);
+  All fields are optional. CLI flags always override config values.
+
+  Example:
+    bump = "patch"                          # "patch" | "minor" | "major"
+    scope = "changed"                       # "all" | "changed"
+    commit = true                           # auto-commit (default: true)
+    tag = true                              # create git tags (default: true)
+    per-package-tags = false                # pkg@version tags (monorepo)
+    tag-prefix = "v"                        # tag prefix (default: "v")
+    sections = ["feat", "fix", "perf"]      # changelog sections and order
+    dry-run = false                         # preview without writing
+    filter-by-package = true                # per-package filtering (monorepo)`);
 }
 
 export function resolveOptions(

@@ -33,7 +33,7 @@ bunset [options]
 | `--all` | Update all workspace packages |
 | `--changed` | Update only changed packages (default for workspaces) |
 | `--no-commit` | Do not commit changes to git (commits by default) |
-| `--tag` | Tag the commit with new version (default) |
+| `--no-tag` | Tag the commit with new version (default) |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of prefixed tags |
 | `--tag-prefix` | Tag prefix (default: `v`, e.g. `v1.2.3`) |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
@@ -87,21 +87,31 @@ Only sections listed in `--sections` (or the `sections` config option) appear in
 
 ### Config File
 
-Place a `.bunset.toml` in your project root to set persistent defaults so you don't have to pass the same flags every time:
+Place a `.bunset.toml` in your project root to set persistent defaults so you don't have to pass the same flags every time. All fields are optional. CLI flags always take priority over config values.
 
 ```toml
-bump = "patch"                              # "patch" | "minor" | "major"
-scope = "changed"                           # "all" | "changed"
-commit = true
-tag = true
-per-package-tags = false
-sections = ["feat", "fix", "perf"]          # changelog sections and order
-dry-run = false                             # preview without writing
-filter-by-package = true                    # per-package commit filtering (monorepo)
-tag-prefix = "v"                            # prefix for version tags
+bump = "patch"                          # "patch" | "minor" | "major"
+scope = "changed"                       # "all" | "changed"
+commit = true                           # auto-commit (default: true)
+tag = true                              # create git tags (default: true)
+per-package-tags = false                # pkg@version tags (monorepo)
+tag-prefix = "v"                        # tag prefix (default: "v")
+sections = ["feat", "fix", "perf"]      # changelog sections and order
+dry-run = false                         # preview without writing
+filter-by-package = true                # per-package filtering (monorepo)
 ```
 
-All fields are optional. CLI flags always take priority over config values. If `bump` or `scope` is set in config, the interactive prompt for that option is skipped.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `bump` | `string` | _(prompt)_ | Version bump type: `"patch"`, `"minor"`, or `"major"`. Skips the interactive prompt when set. |
+| `scope` | `string` | _(prompt)_ | Package scope: `"all"` or `"changed"`. Skips the interactive prompt when set (monorepo only). |
+| `commit` | `boolean` | `true` | Whether to auto-commit the version bump and changelog changes. |
+| `tag` | `boolean` | `true` | Whether to create git tags for released versions. |
+| `per-package-tags` | `boolean` | `false` | Use `pkg@1.2.3` tags instead of prefixed tags. In a monorepo, packages with no matching commits are skipped entirely. |
+| `tag-prefix` | `string` | `"v"` | Prefix for version tags. Set to `""` for bare version numbers, or e.g. `"project-v"` for `project-v1.2.3`. |
+| `sections` | `string[]` | `["feat", "fix", "perf"]` | Which commit types to include in the changelog and in what order. Accepts any recognized type keyword. |
+| `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
+| `filter-by-package` | `boolean` | `true` | In a monorepo, only include commits that touched files within each package. Disable with `false` to include all commits in every changelog. |
 
 ## Testing
 

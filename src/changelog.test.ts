@@ -1,5 +1,6 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { buildChangelogEntry, writeChangelog } from "./changelog.ts";
+import { COMMIT_TYPES } from "./commits.ts";
 import type { GroupedCommits } from "./types.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,7 +22,7 @@ function emptyGroups(): GroupedCommits {
 }
 
 describe("buildChangelogEntry", () => {
-  test("builds entry with all sections", () => {
+  test("builds entry with specified sections", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
@@ -34,7 +35,7 @@ describe("buildChangelogEntry", () => {
         { hash: "c", message: "", type: "test", description: "Add tests" },
       ],
     };
-    const entry = buildChangelogEntry("1.2.0", groups);
+    const entry = buildChangelogEntry("1.2.0", groups, [], COMMIT_TYPES);
     expect(entry).toContain("## 1.2.0");
     expect(entry).toContain("### Features");
     expect(entry).toContain("- Add login");
@@ -42,6 +43,21 @@ describe("buildChangelogEntry", () => {
     expect(entry).toContain("- Fix crash");
     expect(entry).toContain("### Tests");
     expect(entry).toContain("- Add tests");
+  });
+
+  test("only includes configured sections", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [
+        { hash: "a", message: "", type: "feature", description: "New thing" },
+      ],
+      test: [
+        { hash: "b", message: "", type: "test", description: "Add tests" },
+      ],
+    };
+    const entry = buildChangelogEntry("1.0.0", groups);
+    expect(entry).toContain("### Features");
+    expect(entry).not.toContain("### Tests");
   });
 
   test("omits empty sections", () => {
@@ -54,7 +70,7 @@ describe("buildChangelogEntry", () => {
     const entry = buildChangelogEntry("1.0.0", groups);
     expect(entry).toContain("### Features");
     expect(entry).not.toContain("### Bug Fixes");
-    expect(entry).not.toContain("### Tests");
+    expect(entry).not.toContain("### Performance");
   });
 
   test("includes updated dependencies", () => {

@@ -18,6 +18,7 @@ export interface CliOptions {
   commit: boolean;
   tag: boolean;
   perPackageTags: boolean;
+  sections: CommitType[];
 }
 
 export interface ParsedCommit {

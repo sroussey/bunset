@@ -31,7 +31,7 @@ if (rawCommits.length === 0) {
 const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message));
 const groups = groupCommits(parsed);
 
-if (Object.values(groups).every((arr) => arr.length === 0)) {
+if (options.sections.every((type) => groups[type].length === 0)) {
   console.log("No categorized commits found. Nothing to do.");
   process.exit(0);
 }
@@ -60,7 +60,7 @@ for (const pkg of packages) {
     pkg.packageJsonPath,
     lastTag,
   );
-  const entry = buildChangelogEntry(newVersion, groups, updatedDeps);
+  const entry = buildChangelogEntry(newVersion, groups, updatedDeps, options.sections);
   await writeChangelog(pkg.path, entry);
 
   if (options.tag) {

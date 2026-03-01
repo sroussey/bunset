@@ -1,5 +1,5 @@
 import type { CommitType, GroupedCommits, UpdatedDependency } from "./types.ts";
-import { COMMIT_TYPES } from "./commits.ts";
+import { DEFAULT_SECTIONS } from "./commits.ts";
 
 const SECTION_HEADINGS: Record<CommitType, string> = {
   feature: "Features",
@@ -18,10 +18,11 @@ export function buildChangelogEntry(
   version: string,
   groups: GroupedCommits,
   updatedDeps: UpdatedDependency[] = [],
+  sections: CommitType[] = DEFAULT_SECTIONS,
 ): string {
   const lines: string[] = [`## ${version}`, ""];
 
-  for (const type of COMMIT_TYPES) {
+  for (const type of sections) {
     const commits = groups[type];
     if (commits.length > 0) {
       lines.push(`### ${SECTION_HEADINGS[type]}`, "");

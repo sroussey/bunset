@@ -1,5 +1,7 @@
 import type { CommitType, ParsedCommit, GroupedCommits } from "./types.ts";
 
+export const DEFAULT_SECTIONS: CommitType[] = ["feature", "bugfix", "perf"];
+
 const TYPE_MAP: Record<string, CommitType> = {
   feat: "feature",
   feature: "feature",
@@ -28,6 +30,10 @@ export const COMMIT_TYPES: CommitType[] = [
   "ops",
   "chore",
 ];
+
+export function normalizeType(keyword: string): CommitType | null {
+  return TYPE_MAP[keyword.toLowerCase()] ?? null;
+}
 
 // Matches: [type] desc, [type]: desc, or type: desc
 const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+):\s+(.*)$/;

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-import type { BumpType, CliOptions, PackageScope } from "./types.ts";
+import type { BumpType, CliOptions, CommitType, PackageScope } from "./types.ts";
+import { normalizeType, DEFAULT_SECTIONS } from "./commits.ts";
 
 export function printHelp(): void {
   console.log(`bunset - Version bumping and changelog generation for Bun projects
@@ -15,6 +16,7 @@ Options:
   --commit             Commit the version bump and changelog
   --tag                Create git tags for released versions
   --per-package-tags   Use package-scoped tags (pkg@version) instead of v-prefixed
+  --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
   --help, -h           Show this help message
 
 When --patch/--minor/--major is omitted, you will be prompted interactively.
@@ -37,7 +39,8 @@ Commit format:
     build                  → Build
     ops                    → Ops
     chore                  → Chores
-  Commits without a recognized type are excluded from the changelog.
+  Only sections listed in --sections (or config) are included in the changelog.
+  Default sections: feat, fix, perf.
 
 Config:
   Place a .bunset.toml in your project root to set persistent defaults.
@@ -59,6 +62,7 @@ export function resolveOptions(
       commit: { type: "boolean", default: false },
       tag: { type: "boolean", default: false },
       "per-package-tags": { type: "boolean", default: false },
+      sections: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
     strict: true,
@@ -81,12 +85,16 @@ export function resolveOptions(
     ? true
     : (config.perPackageTags ?? false);
 
+  const sections = parseSections(values.sections as string | undefined)
+    ?? config.sections
+    ?? DEFAULT_SECTIONS;
+
   if (bump && scope) {
-    return { scope, bump, commit, tag, perPackageTags };
+    return { scope, bump, commit, tag, perPackageTags, sections };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags },
+    { commit, tag, perPackageTags, sections },
     bump,
     scope,
     isWs,
@@ -110,10 +118,21 @@ function resolveScope(
   return null;
 }
 
+function parseSections(raw: string | undefined): CommitType[] | null {
+  if (!raw) return null;
+  const result: CommitType[] = [];
+  for (const part of raw.split(",")) {
+    const type = normalizeType(part.trim());
+    if (type) result.push(type);
+  }
+  return result.length > 0 ? result : null;
+}
+
 interface MergedDefaults {
   commit: boolean;
   tag: boolean;
   perPackageTags: boolean;
+  sections: CommitType[];
 }
 
 async function promptForMissing(

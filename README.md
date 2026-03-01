@@ -35,6 +35,7 @@ bunset [options]
 | `--commit` | Auto-commit changes to git |
 | `--tag` | Tag the commit with new version |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
+| `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
 
@@ -65,18 +66,19 @@ Recognized type keywords:
 - `ops` — listed under **Ops**
 - `chore` — listed under **Chores**
 
-Commits without a recognized type keyword are excluded from the changelog.
+Only sections listed in `--sections` (or the `sections` config option) appear in the changelog. The default is `feat,fix,perf`.
 
 ### Config File
 
 Place a `.bunset.toml` in your project root to set persistent defaults so you don't have to pass the same flags every time:
 
 ```toml
-bump = "patch"           # "patch" | "minor" | "major"
-scope = "changed"        # "all" | "changed"
+bump = "patch"                              # "patch" | "minor" | "major"
+scope = "changed"                           # "all" | "changed"
 commit = true
 tag = true
 per-package-tags = false
+sections = ["feat", "fix", "perf"]          # changelog sections and order
 ```
 
 All fields are optional. CLI flags always take priority over config values. If `bump` or `scope` is set in config, the interactive prompt for that option is skipped.

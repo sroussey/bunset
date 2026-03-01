@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0
+
+### Features
+
+- align with Conventional Commits 1.0.0 breaking change detection
+
 ## 0.0.3
 
 ### Features

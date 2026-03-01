@@ -21,6 +21,14 @@
     "CHANGELOG.md",
     "src"
   ],
+  "homepage": "https://github.com/sroussey/bunset#readme",
+  "bugs": {
+    "url": "https://github.com/sroussey/bunset/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sroussey/bunset.git"
+  },
   "publishConfig": {
     "access": "public"
   },

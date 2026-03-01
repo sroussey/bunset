@@ -2,25 +2,18 @@
 
 A zero-dependency CLI tool that automates version bumping and changelog generation for Bun workspace monorepos and single packages.
 
-It reads git commit messages since the last tag, categorizes them by type prefix (`[feat]`, `[fix]`, `[test]`), bumps semantic versions, updates `CHANGELOG.md` per package, and optionally commits and tags the result.
+It reads git commit messages since the last tag, categorizes them by type prefix (`feat:`, `fix:`, `test:`), bumps semantic versions, updates `CHANGELOG.md` per package, and optionally commits and tags the result.
 
 ## Install
 
 ```bash
-bun install
+bun add bunset
 ```
 
 ## Usage
 
 ```bash
-bun src/index.ts [options]
-```
-
-Or link it globally:
-
-```bash
-bun link
-bunset [options]
+bunx bunset [options]
 ```
 
 ### Options

@@ -33,7 +33,7 @@ bunset [options]
 | `--all` | Update all workspace packages |
 | `--changed` | Update only changed packages (default for workspaces) |
 | `--commit` | Auto-commit changes to git |
-| `--tag` | Tag the commit with new version |
+| `--tag` | Tag the commit with new version (default) |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 

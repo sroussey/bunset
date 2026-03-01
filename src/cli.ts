@@ -64,7 +64,7 @@ export function resolveOptions(
       minor: { type: "boolean", default: false },
       major: { type: "boolean", default: false },
       commit: { type: "boolean", default: false },
-      tag: { type: "boolean", default: false },
+      tag: { type: "boolean", default: true },
       "per-package-tags": { type: "boolean", default: false },
       sections: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
@@ -84,7 +84,7 @@ export function resolveOptions(
   const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
 
   const commit = values.commit ? true : (config.commit ?? false);
-  const tag = values.tag ? true : (config.tag ?? false);
+  const tag = values.tag ? true : (config.tag ?? true);
   const perPackageTags = values["per-package-tags"]
     ? true
     : (config.perPackageTags ?? false);

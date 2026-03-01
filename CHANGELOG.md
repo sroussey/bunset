@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.3
+
+### Features
+
+- automatically determine tag-prefix based on tag history
+- add --debug option for detailed logging during execution
+
 ## 0.0.2
 
 ### Features

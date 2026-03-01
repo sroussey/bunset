@@ -20,6 +20,7 @@ export interface CliOptions {
   perPackageTags: boolean;
   sections: CommitType[];
   dryRun: boolean;
+  filterByPackage: boolean;
 }
 
 export interface ParsedCommit {
@@ -28,6 +29,7 @@ export interface ParsedCommit {
   type: CommitType | null;
   commitScope: string | null;
   description: string;
+  files: string[];
 }
 
 export type GroupedCommits = Record<CommitType, ParsedCommit[]>;

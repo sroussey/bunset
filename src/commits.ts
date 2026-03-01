@@ -44,7 +44,7 @@ export function parseCommit(hash: string, message: string): ParsedCommit {
   const match = COMMIT_PATTERN.exec(trimmed);
 
   if (!match) {
-    return { hash, message: trimmed, type: null, commitScope: null, description: trimmed };
+    return { hash, message: trimmed, type: null, commitScope: null, description: trimmed, files: [] };
   }
 
   const raw = (match[1] ?? match[3])!.trim();
@@ -56,7 +56,20 @@ export function parseCommit(hash: string, message: string): ParsedCommit {
 
   const type = TYPE_MAP[keyword.toLowerCase()] ?? null;
 
-  return { hash, message: trimmed, type, commitScope, description };
+  return { hash, message: trimmed, type, commitScope, description, files: [] };
+}
+
+export function filterCommitsForPackage(
+  commits: ParsedCommit[],
+  packagePath: string,
+  rootDir: string,
+): ParsedCommit[] {
+  const relPkgPath = packagePath.startsWith(rootDir)
+    ? packagePath.slice(rootDir.length + 1)
+    : packagePath;
+  return commits.filter(
+    (c) => c.files.length === 0 || c.files.some((f) => f.startsWith(relPkgPath + "/")),
+  );
 }
 
 export function groupCommits(commits: ParsedCommit[]): GroupedCommits {

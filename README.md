@@ -37,8 +37,17 @@ bunset [options]
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
+| `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
+
+### Monorepo Per-Package Changelogs
+
+In a monorepo, each package's changelog only includes commits that touched files within that package (enabled by default). A commit that modifies `packages/a/src/index.ts` will only appear in `packages/a/CHANGELOG.md`.
+
+When `--per-package-tags` is set, packages with no matching commits are skipped entirely (no version bump, changelog, or tag). When `--per-package-tags` is not set, all packages are still bumped and get a changelog entry (which may be empty).
+
+Use `--no-filter-by-package` to disable this and include all commits in every package's changelog.
 
 ### Commit Message Format
 
@@ -86,6 +95,8 @@ commit = true
 tag = true
 per-package-tags = false
 sections = ["feat", "fix", "perf"]          # changelog sections and order
+dry-run = false                             # preview without writing
+filter-by-package = true                    # per-package commit filtering (monorepo)
 ```
 
 All fields are optional. CLI flags always take priority over config values. If `bump` or `scope` is set in config, the interactive prompt for that option is skipped.

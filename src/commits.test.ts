@@ -1,5 +1,6 @@
 import { test, expect, describe } from "bun:test";
-import { parseCommit, groupCommits } from "./commits.ts";
+import { parseCommit, groupCommits, filterCommitsForPackage } from "./commits.ts";
+import type { ParsedCommit } from "./types.ts";
 
 describe("parseCommit", () => {
   // [type] description
@@ -7,6 +8,7 @@ describe("parseCommit", () => {
     const result = parseCommit("abc123", "[feat] Add user auth");
     expect(result.type).toBe("feature");
     expect(result.commitScope).toBeNull();
+    expect(result.files).toEqual([]);
     expect(result.description).toBe("Add user auth");
   });
 
@@ -206,14 +208,14 @@ describe("parseCommit", () => {
 
 describe("groupCommits", () => {
   test("groups commits by type", () => {
-    const commits = [
-      { hash: "a", message: "", type: "feature" as const, commitScope: null, description: "F1" },
-      { hash: "b", message: "", type: "bugfix" as const, commitScope: null, description: "B1" },
-      { hash: "c", message: "", type: "test" as const, commitScope: null, description: "T1" },
-      { hash: "d", message: "", type: "feature" as const, commitScope: "auth", description: "F2" },
-      { hash: "e", message: "", type: "refactor" as const, commitScope: null, description: "R1" },
-      { hash: "f", message: "", type: "chore" as const, commitScope: null, description: "C1" },
-      { hash: "g", message: "", type: null, commitScope: null, description: "Ignored" },
+    const commits: ParsedCommit[] = [
+      { hash: "a", message: "", type: "feature", commitScope: null, description: "F1", files: [] },
+      { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B1", files: [] },
+      { hash: "c", message: "", type: "test", commitScope: null, description: "T1", files: [] },
+      { hash: "d", message: "", type: "feature", commitScope: "auth", description: "F2", files: [] },
+      { hash: "e", message: "", type: "refactor", commitScope: null, description: "R1", files: [] },
+      { hash: "f", message: "", type: "chore", commitScope: null, description: "C1", files: [] },
+      { hash: "g", message: "", type: null, commitScope: null, description: "Ignored", files: [] },
     ];
     const groups = groupCommits(commits);
     expect(groups.feature).toHaveLength(2);
@@ -230,5 +232,34 @@ describe("groupCommits", () => {
     expect(groups.feature).toHaveLength(0);
     expect(groups.bugfix).toHaveLength(0);
     expect(groups.test).toHaveLength(0);
+  });
+});
+
+describe("filterCommitsForPackage", () => {
+  const commits: ParsedCommit[] = [
+    { hash: "a", message: "", type: "feature", commitScope: null, description: "A feat", files: ["packages/a/src/index.ts"] },
+    { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B fix", files: ["packages/b/src/main.ts"] },
+    { hash: "c", message: "", type: "feature", commitScope: null, description: "Both", files: ["packages/a/lib/x.ts", "packages/b/lib/y.ts"] },
+    { hash: "d", message: "", type: "feature", commitScope: null, description: "No files", files: [] },
+  ];
+
+  test("filters commits to only those touching the package", () => {
+    const filtered = filterCommitsForPackage(commits, "/root/packages/a", "/root");
+    expect(filtered).toHaveLength(3); // a, c (touches a), d (no files = included)
+    expect(filtered.map((c) => c.hash)).toEqual(["a", "c", "d"]);
+  });
+
+  test("filters for a different package", () => {
+    const filtered = filterCommitsForPackage(commits, "/root/packages/b", "/root");
+    expect(filtered).toHaveLength(3); // b, c (touches b), d (no files = included)
+    expect(filtered.map((c) => c.hash)).toEqual(["b", "c", "d"]);
+  });
+
+  test("includes commits with no files (fallback)", () => {
+    const noFileCommits: ParsedCommit[] = [
+      { hash: "x", message: "", type: "feature", commitScope: null, description: "X", files: [] },
+    ];
+    const filtered = filterCommitsForPackage(noFileCommits, "/root/packages/a", "/root");
+    expect(filtered).toHaveLength(1);
   });
 });

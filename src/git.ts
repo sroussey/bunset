@@ -35,6 +35,23 @@ export async function getCommitsSince(
   return commits;
 }
 
+export async function getCommitFiles(
+  cwd: string,
+  hash: string,
+): Promise<string[]> {
+  try {
+    const result =
+      await $`git -C ${cwd} diff-tree --no-commit-id --name-only -r ${hash}`.quiet();
+    return result
+      .text()
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export async function commitAndTag(
   cwd: string,
   message: string,

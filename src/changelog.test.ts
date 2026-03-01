@@ -26,13 +26,13 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, description: "Add login" },
+        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "Add login" },
       ],
       bugfix: [
-        { hash: "b", message: "", type: "bugfix", commitScope: null, description: "Fix crash" },
+        { hash: "b", message: "", type: "bugfix", commitScope: null, files: [], description: "Fix crash" },
       ],
       test: [
-        { hash: "c", message: "", type: "test", commitScope: null, description: "Add tests" },
+        { hash: "c", message: "", type: "test", commitScope: null, files: [], description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.2.0", groups, [], COMMIT_TYPES);
@@ -49,10 +49,10 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "New thing" },
       ],
       test: [
-        { hash: "b", message: "", type: "test", commitScope: null, description: "Add tests" },
+        { hash: "b", message: "", type: "test", commitScope: null, files: [], description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -64,7 +64,7 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "New thing" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -77,10 +77,10 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, description: "Global feature" },
-        { hash: "b", message: "", type: "feature", commitScope: "auth", description: "Add login" },
-        { hash: "c", message: "", type: "feature", commitScope: "auth", description: "Add logout" },
-        { hash: "d", message: "", type: "feature", commitScope: "ui", description: "New dashboard" },
+        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "Global feature" },
+        { hash: "b", message: "", type: "feature", commitScope: "auth", files: [], description: "Add login" },
+        { hash: "c", message: "", type: "feature", commitScope: "auth", files: [], description: "Add logout" },
+        { hash: "d", message: "", type: "feature", commitScope: "ui", files: [], description: "New dashboard" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -102,7 +102,7 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       bugfix: [
-        { hash: "a", message: "", type: "bugfix", commitScope: "parser", description: "Fix edge case" },
+        { hash: "a", message: "", type: "bugfix", commitScope: "parser", files: [], description: "Fix edge case" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);

@@ -41,6 +41,9 @@ export async function loadConfig(
     config.dryRun = raw["dry-run"];
   }
 
+  if (typeof raw["filter-by-package"] === "boolean") {
+    config.filterByPackage = raw["filter-by-package"];
+  }
 
   if (Array.isArray(raw.sections)) {
     const sections: CommitType[] = [];

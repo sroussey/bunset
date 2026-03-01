@@ -18,6 +18,8 @@ Options:
   --per-package-tags   Use package-scoped tags (pkg@version) instead of v-prefixed
   --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
   --dry-run            Preview changes without writing files, committing, or tagging
+  --no-filter-by-package
+                       Include all commits in every package changelog (monorepo)
   --help, -h           Show this help message
 
 When --patch/--minor/--major is omitted, you will be prompted interactively.
@@ -69,6 +71,7 @@ export function resolveOptions(
       "per-package-tags": { type: "boolean", default: false },
       sections: { type: "string" },
       "dry-run": { type: "boolean", default: false },
+      "filter-by-package": { type: "boolean", default: true },
       help: { type: "boolean", short: "h", default: false },
     },
     strict: true,
@@ -97,12 +100,16 @@ export function resolveOptions(
 
   const dryRun = values["dry-run"] ? true : (config.dryRun ?? false);
 
+  const filterByPackage = values["filter-by-package"] === false
+    ? false
+    : (config.filterByPackage ?? true);
+
   if (bump && scope) {
-    return { scope, bump, commit, tag, perPackageTags, sections };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage },
     bump,
     scope,
     isWs,
@@ -142,6 +149,7 @@ interface MergedDefaults {
   perPackageTags: boolean;
   sections: CommitType[];
   dryRun: boolean;
+  filterByPackage: boolean;
 }
 
 async function promptForMissing(

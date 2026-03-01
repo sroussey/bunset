@@ -5,16 +5,32 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+function emptyGroups(): GroupedCommits {
+  return {
+    feature: [],
+    bugfix: [],
+    refactor: [],
+    perf: [],
+    style: [],
+    test: [],
+    docs: [],
+    build: [],
+    ops: [],
+    chore: [],
+  };
+}
+
 describe("buildChangelogEntry", () => {
   test("builds entry with all sections", () => {
     const groups: GroupedCommits = {
-      features: [
+      ...emptyGroups(),
+      feature: [
         { hash: "a", message: "", type: "feature", description: "Add login" },
       ],
-      bugfixes: [
+      bugfix: [
         { hash: "b", message: "", type: "bugfix", description: "Fix crash" },
       ],
-      tests: [
+      test: [
         { hash: "c", message: "", type: "test", description: "Add tests" },
       ],
     };
@@ -30,11 +46,10 @@ describe("buildChangelogEntry", () => {
 
   test("omits empty sections", () => {
     const groups: GroupedCommits = {
-      features: [
+      ...emptyGroups(),
+      feature: [
         { hash: "a", message: "", type: "feature", description: "New thing" },
       ],
-      bugfixes: [],
-      tests: [],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
     expect(entry).toContain("### Features");
@@ -43,11 +58,7 @@ describe("buildChangelogEntry", () => {
   });
 
   test("includes updated dependencies", () => {
-    const groups: GroupedCommits = {
-      features: [],
-      bugfixes: [],
-      tests: [],
-    };
+    const groups = emptyGroups();
     const deps = [{ name: "lodash", newVersion: "4.18.0" }];
     const entry = buildChangelogEntry("2.0.0", groups, deps);
     expect(entry).toContain("### Updated Dependencies");

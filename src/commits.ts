@@ -3,11 +3,31 @@ import type { CommitType, ParsedCommit, GroupedCommits } from "./types.ts";
 const TYPE_MAP: Record<string, CommitType> = {
   feat: "feature",
   feature: "feature",
-  bug: "bugfix",
   fix: "bugfix",
+  bug: "bugfix",
   bugfix: "bugfix",
+  refactor: "refactor",
+  perf: "perf",
+  style: "style",
   test: "test",
+  docs: "docs",
+  build: "build",
+  ops: "ops",
+  chore: "chore",
 };
+
+export const COMMIT_TYPES: CommitType[] = [
+  "feature",
+  "bugfix",
+  "refactor",
+  "perf",
+  "style",
+  "test",
+  "docs",
+  "build",
+  "ops",
+  "chore",
+];
 
 // Matches: [type] desc, [type]: desc, or type: desc
 const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+):\s+(.*)$/;
@@ -28,23 +48,15 @@ export function parseCommit(hash: string, message: string): ParsedCommit {
 }
 
 export function groupCommits(commits: ParsedCommit[]): GroupedCommits {
-  const features: ParsedCommit[] = [];
-  const bugfixes: ParsedCommit[] = [];
-  const tests: ParsedCommit[] = [];
+  const groups = Object.fromEntries(
+    COMMIT_TYPES.map((t) => [t, [] as ParsedCommit[]]),
+  ) as GroupedCommits;
 
   for (const commit of commits) {
-    switch (commit.type) {
-      case "feature":
-        features.push(commit);
-        break;
-      case "bugfix":
-        bugfixes.push(commit);
-        break;
-      case "test":
-        tests.push(commit);
-        break;
+    if (commit.type) {
+      groups[commit.type].push(commit);
     }
   }
 
-  return { features, bugfixes, tests };
+  return groups;
 }

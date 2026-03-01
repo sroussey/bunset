@@ -1,6 +1,16 @@
 export type BumpType = "patch" | "minor" | "major";
 export type PackageScope = "all" | "changed";
-export type CommitType = "feature" | "bugfix" | "test";
+export type CommitType =
+  | "feature"
+  | "bugfix"
+  | "refactor"
+  | "perf"
+  | "style"
+  | "test"
+  | "docs"
+  | "build"
+  | "ops"
+  | "chore";
 
 export interface CliOptions {
   scope: PackageScope;
@@ -17,11 +27,7 @@ export interface ParsedCommit {
   description: string;
 }
 
-export interface GroupedCommits {
-  features: ParsedCommit[];
-  bugfixes: ParsedCommit[];
-  tests: ParsedCommit[];
-}
+export type GroupedCommits = Record<CommitType, ParsedCommit[]>;
 
 export interface PackageInfo {
   name: string;

@@ -56,7 +56,14 @@ All three styles work:
 Recognized type keywords:
 - `feat`, `feature` — listed under **Features**
 - `fix`, `bug`, `bugfix` — listed under **Bug Fixes**
+- `refactor` — listed under **Refactors**
+- `perf` — listed under **Performance**
+- `style` — listed under **Style**
 - `test` — listed under **Tests**
+- `docs` — listed under **Documentation**
+- `build` — listed under **Build**
+- `ops` — listed under **Ops**
+- `chore` — listed under **Chores**
 
 Commits without a recognized type keyword are excluded from the changelog.
 

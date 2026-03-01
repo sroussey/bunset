@@ -31,11 +31,7 @@ if (rawCommits.length === 0) {
 const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message));
 const groups = groupCommits(parsed);
 
-if (
-  groups.features.length === 0 &&
-  groups.bugfixes.length === 0 &&
-  groups.tests.length === 0
-) {
+if (Object.values(groups).every((arr) => arr.length === 0)) {
   console.log("No categorized commits found. Nothing to do.");
   process.exit(0);
 }

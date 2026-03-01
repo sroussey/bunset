@@ -37,6 +37,48 @@ describe("parseCommit", () => {
     expect(result.description).toBe("Add unit tests for parser");
   });
 
+  test("parses [refactor] commit", () => {
+    const result = parseCommit("a1", "[refactor] Simplify auth module");
+    expect(result.type).toBe("refactor");
+    expect(result.description).toBe("Simplify auth module");
+  });
+
+  test("parses [perf] commit", () => {
+    const result = parseCommit("a2", "[perf] Speed up query");
+    expect(result.type).toBe("perf");
+    expect(result.description).toBe("Speed up query");
+  });
+
+  test("parses [style] commit", () => {
+    const result = parseCommit("a3", "[style] Fix formatting");
+    expect(result.type).toBe("style");
+    expect(result.description).toBe("Fix formatting");
+  });
+
+  test("parses [docs] commit", () => {
+    const result = parseCommit("a4", "[docs] Update readme");
+    expect(result.type).toBe("docs");
+    expect(result.description).toBe("Update readme");
+  });
+
+  test("parses [build] commit", () => {
+    const result = parseCommit("a5", "[build] Update dependencies");
+    expect(result.type).toBe("build");
+    expect(result.description).toBe("Update dependencies");
+  });
+
+  test("parses [ops] commit", () => {
+    const result = parseCommit("a6", "[ops] Update CI pipeline");
+    expect(result.type).toBe("ops");
+    expect(result.description).toBe("Update CI pipeline");
+  });
+
+  test("parses [chore] commit", () => {
+    const result = parseCommit("a7", "[chore] Initial commit");
+    expect(result.type).toBe("chore");
+    expect(result.description).toBe("Initial commit");
+  });
+
   // [type]: description
   test("parses [feat]: commit", () => {
     const result = parseCommit("abc123", "[feat]: Add user auth");
@@ -69,17 +111,35 @@ describe("parseCommit", () => {
     expect(result.description).toBe("Add parser tests");
   });
 
+  test("parses refactor: commit", () => {
+    const result = parseCommit("b1", "refactor: Simplify logic");
+    expect(result.type).toBe("refactor");
+    expect(result.description).toBe("Simplify logic");
+  });
+
+  test("parses perf: commit", () => {
+    const result = parseCommit("b2", "perf: Optimize render");
+    expect(result.type).toBe("perf");
+    expect(result.description).toBe("Optimize render");
+  });
+
+  test("parses chore: commit", () => {
+    const result = parseCommit("b3", "chore: Bump version");
+    expect(result.type).toBe("chore");
+    expect(result.description).toBe("Bump version");
+  });
+
   // Edge cases
   test("returns null type for unrecognized [prefix]", () => {
-    const result = parseCommit("jkl012", "[docs] Update readme");
+    const result = parseCommit("jkl012", "[unknown] Something");
     expect(result.type).toBeNull();
-    expect(result.description).toBe("Update readme");
+    expect(result.description).toBe("Something");
   });
 
   test("returns null type for unrecognized prefix:", () => {
-    const result = parseCommit("jkl012", "docs: Update readme");
+    const result = parseCommit("jkl012", "unknown: Something");
     expect(result.type).toBeNull();
-    expect(result.description).toBe("Update readme");
+    expect(result.description).toBe("Something");
   });
 
   test("returns null type for plain commits", () => {
@@ -111,18 +171,24 @@ describe("groupCommits", () => {
       { hash: "b", message: "", type: "bugfix" as const, description: "B1" },
       { hash: "c", message: "", type: "test" as const, description: "T1" },
       { hash: "d", message: "", type: "feature" as const, description: "F2" },
-      { hash: "e", message: "", type: null, description: "Ignored" },
+      { hash: "e", message: "", type: "refactor" as const, description: "R1" },
+      { hash: "f", message: "", type: "chore" as const, description: "C1" },
+      { hash: "g", message: "", type: null, description: "Ignored" },
     ];
     const groups = groupCommits(commits);
-    expect(groups.features).toHaveLength(2);
-    expect(groups.bugfixes).toHaveLength(1);
-    expect(groups.tests).toHaveLength(1);
+    expect(groups.feature).toHaveLength(2);
+    expect(groups.bugfix).toHaveLength(1);
+    expect(groups.test).toHaveLength(1);
+    expect(groups.refactor).toHaveLength(1);
+    expect(groups.chore).toHaveLength(1);
+    expect(groups.perf).toHaveLength(0);
+    expect(groups.docs).toHaveLength(0);
   });
 
   test("handles empty commit list", () => {
     const groups = groupCommits([]);
-    expect(groups.features).toHaveLength(0);
-    expect(groups.bugfixes).toHaveLength(0);
-    expect(groups.tests).toHaveLength(0);
+    expect(groups.feature).toHaveLength(0);
+    expect(groups.bugfix).toHaveLength(0);
+    expect(groups.test).toHaveLength(0);
   });
 });

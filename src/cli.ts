@@ -29,7 +29,14 @@ Commit format:
   Recognized type keywords:
     feat, feature          → Features
     fix, bug, bugfix       → Bug Fixes
+    refactor               → Refactors
+    perf                   → Performance
+    style                  → Style
     test                   → Tests
+    docs                   → Documentation
+    build                  → Build
+    ops                    → Ops
+    chore                  → Chores
   Commits without a recognized type are excluded from the changelog.
 
 Config:

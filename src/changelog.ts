@@ -1,4 +1,18 @@
-import type { GroupedCommits, UpdatedDependency } from "./types.ts";
+import type { CommitType, GroupedCommits, UpdatedDependency } from "./types.ts";
+import { COMMIT_TYPES } from "./commits.ts";
+
+const SECTION_HEADINGS: Record<CommitType, string> = {
+  feature: "Features",
+  bugfix: "Bug Fixes",
+  refactor: "Refactors",
+  perf: "Performance",
+  style: "Style",
+  test: "Tests",
+  docs: "Documentation",
+  build: "Build",
+  ops: "Ops",
+  chore: "Chores",
+};
 
 export function buildChangelogEntry(
   version: string,
@@ -7,28 +21,15 @@ export function buildChangelogEntry(
 ): string {
   const lines: string[] = [`## ${version}`, ""];
 
-  if (groups.features.length > 0) {
-    lines.push("### Features", "");
-    for (const c of groups.features) {
-      lines.push(`- ${c.description}`);
+  for (const type of COMMIT_TYPES) {
+    const commits = groups[type];
+    if (commits.length > 0) {
+      lines.push(`### ${SECTION_HEADINGS[type]}`, "");
+      for (const c of commits) {
+        lines.push(`- ${c.description}`);
+      }
+      lines.push("");
     }
-    lines.push("");
-  }
-
-  if (groups.bugfixes.length > 0) {
-    lines.push("### Bug Fixes", "");
-    for (const c of groups.bugfixes) {
-      lines.push(`- ${c.description}`);
-    }
-    lines.push("");
-  }
-
-  if (groups.tests.length > 0) {
-    lines.push("### Tests", "");
-    for (const c of groups.tests) {
-      lines.push(`- ${c.description}`);
-    }
-    lines.push("");
   }
 
   if (updatedDeps.length > 0) {

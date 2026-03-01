@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+### Bug Fixes
+
+- missing README
+
 ## 1.0.0
 
 ### Features

@@ -21,7 +21,7 @@ export interface CliOptions {
   sections: CommitType[];
   dryRun: boolean;
   filterByPackage: boolean;
-  tagPrefix: string;
+  tagPrefix: string | null;
   debug: boolean;
 }
 

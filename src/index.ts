@@ -47,6 +47,20 @@ const allPackages = await getAllPackages(cwd);
 const lastTag = await getLastTag(cwd);
 const rawCommits = await getCommitsSince(cwd, lastTag);
 
+// Resolve tagPrefix: explicit value wins, otherwise infer from last tag
+let tagPrefix: string;
+if (options.tagPrefix !== null) {
+  tagPrefix = options.tagPrefix;
+  debug(`tag prefix explicit: "${tagPrefix}"`);
+} else if (lastTag) {
+  const semverMatch = lastTag.match(/\d+\.\d+\.\d+/);
+  tagPrefix = semverMatch ? lastTag.slice(0, semverMatch.index) : "v";
+  debug(`tag prefix auto-detected: "${tagPrefix}" (from tag: ${lastTag})`);
+} else {
+  tagPrefix = "v";
+  debug(`tag prefix default: "${tagPrefix}" (no previous tags found)`);
+}
+
 debug(`last tag: ${lastTag ?? "(none)"}`);
 debug(`raw commits since tag: ${rawCommits.length}`);
 
@@ -173,7 +187,7 @@ if (options.dryRun) {
       if (options.perPackageTags) {
         tags.push(`${pkg.name}@${newVersion}`);
       } else {
-        tags.push(`${options.tagPrefix}${newVersion}`);
+        tags.push(`${tagPrefix}${newVersion}`);
       }
     }
   }
@@ -233,7 +247,7 @@ for (const pkg of packages) {
     if (options.perPackageTags) {
       tags.push(`${pkg.name}@${newVersion}`);
     } else {
-      tags.push(`${options.tagPrefix}${newVersion}`);
+      tags.push(`${tagPrefix}${newVersion}`);
     }
   }
 }

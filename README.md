@@ -35,7 +35,7 @@ bunset [options]
 | `--no-commit` | Do not commit changes to git (commits by default) |
 | `--no-tag` | Tag the commit with new version (default) |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of prefixed tags |
-| `--tag-prefix` | Tag prefix (default: `v`, e.g. `v1.2.3`) |
+| `--tag-prefix` | Tag prefix (auto-detected from last tag, or `v` if no tags) |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
@@ -96,7 +96,7 @@ scope = "changed"                       # "all" | "changed"
 commit = true                           # auto-commit (default: true)
 tag = true                              # create git tags (default: true)
 per-package-tags = false                # pkg@version tags (monorepo)
-tag-prefix = "v"                        # tag prefix (default: "v")
+tag-prefix = "v"                        # tag prefix (default: auto-detect)
 sections = ["feat", "fix", "perf"]      # changelog sections and order
 dry-run = false                         # preview without writing
 debug = false                           # detailed reasoning (implies dry-run)
@@ -110,7 +110,7 @@ filter-by-package = true                # per-package filtering (monorepo)
 | `commit` | `boolean` | `true` | Whether to auto-commit the version bump and changelog changes. |
 | `tag` | `boolean` | `true` | Whether to create git tags for released versions. |
 | `per-package-tags` | `boolean` | `false` | Use `pkg@1.2.3` tags instead of prefixed tags. In a monorepo, packages with no matching commits are skipped entirely. |
-| `tag-prefix` | `string` | `"v"` | Prefix for version tags. Set to `""` for bare version numbers, or e.g. `"project-v"` for `project-v1.2.3`. |
+| `tag-prefix` | `string` | _(auto)_ | Prefix for version tags. Auto-detected from the last git tag when not set (falls back to `"v"` if no tags exist). Set to `""` for bare version numbers, or e.g. `"project-v"` for `project-v1.2.3`. |
 | `sections` | `string[]` | `["feat", "fix", "perf"]` | Which commit types to include in the changelog and in what order. Accepts any recognized type keyword. |
 | `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
 | `debug` | `boolean` | `false` | Show detailed inclusion/exclusion reasoning. Implies `dry-run`. |

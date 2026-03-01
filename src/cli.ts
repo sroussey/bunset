@@ -16,7 +16,7 @@ Options:
   --no-commit          Do not commit the version bump and changelog
   --no-tag             Do not create git tags for released versions
   --per-package-tags   Use package-scoped tags (pkg@version) instead of prefixed
-  --tag-prefix <str>   Tag prefix (default: "v", e.g. v1.2.3)
+  --tag-prefix <str>   Tag prefix (auto-detected from last tag, or "v" if no tags)
   --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
   --dry-run            Preview changes without writing files, committing, or tagging
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
@@ -61,7 +61,7 @@ Config file (.bunset.toml):
     commit = true                           # auto-commit (default: true)
     tag = true                              # create git tags (default: true)
     per-package-tags = false                # pkg@version tags (monorepo)
-    tag-prefix = "v"                        # tag prefix (default: "v")
+    tag-prefix = "v"                        # tag prefix (default: auto-detect)
     sections = ["feat", "fix", "perf"]      # changelog sections and order
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
@@ -123,7 +123,7 @@ export function resolveOptions(
 
   const tagPrefix = values["tag-prefix"] as string | undefined
     ?? config.tagPrefix
-    ?? "v";
+    ?? null;
 
   if (bump && scope) {
     return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, debug };
@@ -171,7 +171,7 @@ interface MergedDefaults {
   sections: CommitType[];
   dryRun: boolean;
   filterByPackage: boolean;
-  tagPrefix: string;
+  tagPrefix: string | null;
   debug: boolean;
 }
 

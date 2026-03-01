@@ -49,6 +49,10 @@ export async function loadConfig(
     config.tagPrefix = raw["tag-prefix"];
   }
 
+  if (typeof raw.debug === "boolean") {
+    config.debug = raw.debug;
+  }
+
   if (Array.isArray(raw.sections)) {
     const sections: CommitType[] = [];
     for (const s of raw.sections) {

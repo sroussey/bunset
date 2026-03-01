@@ -22,6 +22,7 @@ export interface CliOptions {
   dryRun: boolean;
   filterByPackage: boolean;
   tagPrefix: string;
+  debug: boolean;
 }
 
 export interface ParsedCommit {

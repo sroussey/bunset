@@ -29,9 +29,26 @@ const isWs = await isWorkspace(cwd);
 const config = await loadConfig(cwd);
 const options = await resolveOptions(isWs, config);
 
+const dbg = options.debug;
+function debug(msg: string): void {
+  if (dbg) console.log(`[debug] ${msg}`);
+}
+
+if (dbg) {
+  console.log("--- Debug Mode (dry-run implied) ---\n");
+  debug(`cwd: ${cwd}`);
+  debug(`workspace: ${isWs}`);
+  debug(`config loaded: ${JSON.stringify(config)}`);
+  debug(`resolved options: ${JSON.stringify(options)}`);
+  console.log("");
+}
+
 const allPackages = await getAllPackages(cwd);
 const lastTag = await getLastTag(cwd);
 const rawCommits = await getCommitsSince(cwd, lastTag);
+
+debug(`last tag: ${lastTag ?? "(none)"}`);
+debug(`raw commits since tag: ${rawCommits.length}`);
 
 if (rawCommits.length === 0) {
   console.log("No commits found since last tag. Nothing to do.");
@@ -40,14 +57,33 @@ if (rawCommits.length === 0) {
 
 const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message));
 
+if (dbg) {
+  console.log("");
+  debug("--- Parsed commits ---");
+  for (const c of parsed) {
+    const typeStr = c.type ?? "UNRECOGNIZED";
+    const scopeStr = c.commitScope ? `(${c.commitScope})` : "";
+    const included = c.type && options.sections.includes(c.type) ? "INCLUDED" : "EXCLUDED";
+    debug(`  ${c.hash.slice(0, 7)} ${typeStr}${scopeStr}: ${c.description} → ${included} (section: ${c.type ?? "none"})`);
+  }
+  console.log("");
+}
+
 // In a monorepo with filtering, fetch the file list for each commit
 const shouldFilter = isWs && options.filterByPackage;
+debug(`per-package filtering: ${shouldFilter ? "enabled" : "disabled"}`);
 if (shouldFilter) {
   await Promise.all(
     parsed.map(async (commit) => {
       commit.files = await getCommitFiles(cwd, commit.hash);
     }),
   );
+  if (dbg) {
+    for (const c of parsed) {
+      debug(`  ${c.hash.slice(0, 7)} files: ${c.files.length > 0 ? c.files.join(", ") : "(none)"}`);
+    }
+    console.log("");
+  }
 }
 
 const globalGroups = groupCommits(parsed);
@@ -61,6 +97,8 @@ let packages =
   options.scope === "changed"
     ? await getChangedPackages(cwd, allPackages, lastTag)
     : allPackages;
+
+debug(`scope: ${options.scope}, packages to process: ${packages.map((p) => p.name).join(", ") || "(none)"}`);
 
 if (packages.length === 0) {
   console.log("No changed packages found. Nothing to do.");
@@ -81,13 +119,31 @@ function packageHasChanges(groups: GroupedCommits): boolean {
 }
 
 if (options.dryRun) {
-  console.log("--- Dry Run ---\n");
+  if (!dbg) console.log("--- Dry Run ---\n");
 
   const tags: string[] = [];
 
   for (const pkg of packages) {
     const groups = getPackageGroups(pkg, parsed);
     const hasChanges = packageHasChanges(groups);
+
+    if (dbg) {
+      debug(`--- Package: ${pkg.name} ---`);
+      debug(`  path: ${pkg.path}`);
+      debug(`  current version: ${pkg.version ?? "0.0.0"}`);
+      for (const section of options.sections) {
+        const commits = groups[section];
+        if (commits.length > 0) {
+          debug(`  ${section}: ${commits.length} commit(s)`);
+          for (const c of commits) {
+            debug(`    - ${c.hash.slice(0, 7)} ${c.description}${c.commitScope ? ` (scope: ${c.commitScope})` : ""}`);
+          }
+        } else {
+          debug(`  ${section}: 0 commits`);
+        }
+      }
+      debug(`  has matching commits: ${hasChanges}`);
+    }
 
     if (!hasChanges && options.perPackageTags) {
       console.log(`${pkg.name}: no matching commits, skipping.`);

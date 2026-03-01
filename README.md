@@ -38,6 +38,7 @@ bunset [options]
 | `--tag-prefix` | Tag prefix (default: `v`, e.g. `v1.2.3`) |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
+| `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
@@ -98,6 +99,7 @@ per-package-tags = false                # pkg@version tags (monorepo)
 tag-prefix = "v"                        # tag prefix (default: "v")
 sections = ["feat", "fix", "perf"]      # changelog sections and order
 dry-run = false                         # preview without writing
+debug = false                           # detailed reasoning (implies dry-run)
 filter-by-package = true                # per-package filtering (monorepo)
 ```
 
@@ -111,6 +113,7 @@ filter-by-package = true                # per-package filtering (monorepo)
 | `tag-prefix` | `string` | `"v"` | Prefix for version tags. Set to `""` for bare version numbers, or e.g. `"project-v"` for `project-v1.2.3`. |
 | `sections` | `string[]` | `["feat", "fix", "perf"]` | Which commit types to include in the changelog and in what order. Accepts any recognized type keyword. |
 | `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
+| `debug` | `boolean` | `false` | Show detailed inclusion/exclusion reasoning. Implies `dry-run`. |
 | `filter-by-package` | `boolean` | `true` | In a monorepo, only include commits that touched files within each package. Disable with `false` to include all commits in every changelog. |
 
 ## Testing

@@ -8,6 +8,7 @@ describe("parseCommit", () => {
     const result = parseCommit("abc123", "[feat] Add user auth");
     expect(result.type).toBe("feature");
     expect(result.commitScope).toBeNull();
+    expect(result.breaking).toBe(false);
     expect(result.files).toEqual([]);
     expect(result.description).toBe("Add user auth");
   });
@@ -204,18 +205,94 @@ describe("parseCommit", () => {
     const result = parseCommit("vwx234", "[feat No closing bracket");
     expect(result.type).toBeNull();
   });
+
+  // Breaking change `!` marker
+  test("parses feat!: as breaking", () => {
+    const result = parseCommit("brk1", "feat!: breaking change");
+    expect(result.type).toBe("feature");
+    expect(result.breaking).toBe(true);
+    expect(result.description).toBe("breaking change");
+  });
+
+  test("parses feat(auth)!: as breaking with scope", () => {
+    const result = parseCommit("brk2", "feat(auth)!: breaking");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("auth");
+    expect(result.breaking).toBe(true);
+    expect(result.description).toBe("breaking");
+  });
+
+  test("parses [feat!] as breaking", () => {
+    const result = parseCommit("brk3", "[feat!] breaking");
+    expect(result.type).toBe("feature");
+    expect(result.breaking).toBe(true);
+    expect(result.description).toBe("breaking");
+  });
+
+  test("parses [feat(auth)!]: as breaking with scope", () => {
+    const result = parseCommit("brk4", "[feat(auth)!]: breaking");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("auth");
+    expect(result.breaking).toBe(true);
+    expect(result.description).toBe("breaking");
+  });
+
+  test("parses [feat(auth)!] as breaking with scope and no colon", () => {
+    const result = parseCommit("brk4b", "[feat(auth)!] breaking");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("auth");
+    expect(result.breaking).toBe(true);
+    expect(result.description).toBe("breaking");
+  });
+
+  test("parses fix!: as breaking", () => {
+    const result = parseCommit("brk5", "fix!: desc");
+    expect(result.type).toBe("bugfix");
+    expect(result.breaking).toBe(true);
+  });
+
+  // BREAKING CHANGE footer in body
+  test("detects BREAKING CHANGE: in body", () => {
+    const result = parseCommit("brk6", "feat: add feature", "BREAKING CHANGE: old API removed");
+    expect(result.type).toBe("feature");
+    expect(result.breaking).toBe(true);
+  });
+
+  test("detects BREAKING-CHANGE: in body", () => {
+    const result = parseCommit("brk7", "feat: add feature", "BREAKING-CHANGE: old API removed");
+    expect(result.type).toBe("feature");
+    expect(result.breaking).toBe(true);
+  });
+
+  test("body without breaking footer is not breaking", () => {
+    const result = parseCommit("brk8", "feat: add feature", "Just some extra details");
+    expect(result.breaking).toBe(false);
+  });
+
+  // ci type
+  test("parses ci: commit", () => {
+    const result = parseCommit("ci1", "ci: setup pipeline");
+    expect(result.type).toBe("ci");
+    expect(result.description).toBe("setup pipeline");
+  });
+
+  test("parses [ci] commit", () => {
+    const result = parseCommit("ci2", "[ci] Add GitHub Actions");
+    expect(result.type).toBe("ci");
+    expect(result.description).toBe("Add GitHub Actions");
+  });
 });
 
 describe("groupCommits", () => {
   test("groups commits by type", () => {
     const commits: ParsedCommit[] = [
-      { hash: "a", message: "", type: "feature", commitScope: null, description: "F1", files: [] },
-      { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B1", files: [] },
-      { hash: "c", message: "", type: "test", commitScope: null, description: "T1", files: [] },
-      { hash: "d", message: "", type: "feature", commitScope: "auth", description: "F2", files: [] },
-      { hash: "e", message: "", type: "refactor", commitScope: null, description: "R1", files: [] },
-      { hash: "f", message: "", type: "chore", commitScope: null, description: "C1", files: [] },
-      { hash: "g", message: "", type: null, commitScope: null, description: "Ignored", files: [] },
+      { hash: "a", message: "", type: "feature", commitScope: null, description: "F1", breaking: false, files: [] },
+      { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B1", breaking: false, files: [] },
+      { hash: "c", message: "", type: "test", commitScope: null, description: "T1", breaking: false, files: [] },
+      { hash: "d", message: "", type: "feature", commitScope: "auth", description: "F2", breaking: false, files: [] },
+      { hash: "e", message: "", type: "refactor", commitScope: null, description: "R1", breaking: false, files: [] },
+      { hash: "f", message: "", type: "chore", commitScope: null, description: "C1", breaking: false, files: [] },
+      { hash: "g", message: "", type: null, commitScope: null, description: "Ignored", breaking: false, files: [] },
     ];
     const groups = groupCommits(commits);
     expect(groups.feature).toHaveLength(2);
@@ -237,10 +314,10 @@ describe("groupCommits", () => {
 
 describe("filterCommitsForPackage", () => {
   const commits: ParsedCommit[] = [
-    { hash: "a", message: "", type: "feature", commitScope: null, description: "A feat", files: ["packages/a/src/index.ts"] },
-    { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B fix", files: ["packages/b/src/main.ts"] },
-    { hash: "c", message: "", type: "feature", commitScope: null, description: "Both", files: ["packages/a/lib/x.ts", "packages/b/lib/y.ts"] },
-    { hash: "d", message: "", type: "feature", commitScope: null, description: "No files", files: [] },
+    { hash: "a", message: "", type: "feature", commitScope: null, description: "A feat", breaking: false, files: ["packages/a/src/index.ts"] },
+    { hash: "b", message: "", type: "bugfix", commitScope: null, description: "B fix", breaking: false, files: ["packages/b/src/main.ts"] },
+    { hash: "c", message: "", type: "feature", commitScope: null, description: "Both", breaking: false, files: ["packages/a/lib/x.ts", "packages/b/lib/y.ts"] },
+    { hash: "d", message: "", type: "feature", commitScope: null, description: "No files", breaking: false, files: [] },
   ];
 
   test("filters commits to only those touching the package", () => {
@@ -257,7 +334,7 @@ describe("filterCommitsForPackage", () => {
 
   test("includes commits with no files (fallback)", () => {
     const noFileCommits: ParsedCommit[] = [
-      { hash: "x", message: "", type: "feature", commitScope: null, description: "X", files: [] },
+      { hash: "x", message: "", type: "feature", commitScope: null, description: "X", breaking: false, files: [] },
     ];
     const filtered = filterCommitsForPackage(noFileCommits, "/root/packages/a", "/root");
     expect(filtered).toHaveLength(1);

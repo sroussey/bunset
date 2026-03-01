@@ -12,6 +12,7 @@ const SECTION_HEADINGS: Record<CommitType, string> = {
   build: "Build",
   ops: "Ops",
   chore: "Chores",
+  ci: "CI",
 };
 
 export function buildChangelogEntry(
@@ -21,6 +22,20 @@ export function buildChangelogEntry(
   sections: CommitType[] = DEFAULT_SECTIONS,
 ): string {
   const lines: string[] = [`## ${version}`, ""];
+
+  // Collect breaking changes across all types
+  const breakingCommits = Object.values(groups).flat().filter((c) => c.breaking);
+  if (breakingCommits.length > 0) {
+    lines.push("### Breaking Changes", "");
+    for (const c of breakingCommits) {
+      const typeLabel = c.type ? SECTION_HEADINGS[c.type].toLowerCase() : "unknown";
+      const prefix = c.commitScope
+        ? `**${typeLabel}(${c.commitScope})**`
+        : `**${typeLabel}**`;
+      lines.push(`- ${prefix}: ${c.description}`);
+    }
+    lines.push("");
+  }
 
   for (const type of sections) {
     const commits = groups[type];

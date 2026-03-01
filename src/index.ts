@@ -69,7 +69,7 @@ if (rawCommits.length === 0) {
   process.exit(0);
 }
 
-const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message));
+const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message, c.body));
 
 if (dbg) {
   console.log("");
@@ -79,6 +79,18 @@ if (dbg) {
     const scopeStr = c.commitScope ? `(${c.commitScope})` : "";
     const included = c.type && options.sections.includes(c.type) ? "INCLUDED" : "EXCLUDED";
     debug(`  ${c.hash.slice(0, 7)} ${typeStr}${scopeStr}: ${c.description} → ${included} (section: ${c.type ?? "none"})`);
+  }
+  console.log("");
+}
+
+// Warn if breaking changes detected with non-major bump
+const hasBreaking = parsed.some((c) => c.breaking);
+if (hasBreaking && options.bump !== "major") {
+  console.log(`\u26a0 Breaking changes detected but bump is "${options.bump}" (not "major").`);
+  if (dbg) {
+    for (const c of parsed.filter((c) => c.breaking)) {
+      debug(`  breaking: ${c.hash.slice(0, 7)} ${c.message}`);
+    }
   }
   console.log("");
 }

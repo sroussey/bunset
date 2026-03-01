@@ -16,6 +16,7 @@ const TYPE_MAP: Record<string, CommitType> = {
   build: "build",
   ops: "ops",
   chore: "chore",
+  ci: "ci",
 };
 
 export const COMMIT_TYPES: CommitType[] = [
@@ -29,34 +30,57 @@ export const COMMIT_TYPES: CommitType[] = [
   "build",
   "ops",
   "chore",
+  "ci",
 ];
 
 export function normalizeType(keyword: string): CommitType | null {
   return TYPE_MAP[keyword.toLowerCase()] ?? null;
 }
 
-// Matches: [type(scope)] desc, [type]: desc, type(scope): desc, type: desc
-const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+(?:\([^)]*\))?):\s+(.*)$/;
+// Matches: [type(scope)!] desc, [type]: desc, type(scope)!: desc, type: desc
+const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+(?:\([^)]*\))?!?):\s+(.*)$/;
 const SCOPE_PATTERN = /^(\w+)\(([^)]*)\)$/;
 
-export function parseCommit(hash: string, message: string): ParsedCommit {
+const BREAKING_FOOTER_PATTERN = /^BREAKING[ -]CHANGE:\s/m;
+
+export function parseCommit(hash: string, message: string, body?: string): ParsedCommit {
   const trimmed = message.trim();
   const match = COMMIT_PATTERN.exec(trimmed);
 
   if (!match) {
-    return { hash, message: trimmed, type: null, commitScope: null, description: trimmed, files: [] };
+    return { hash, message: trimmed, type: null, commitScope: null, description: trimmed, breaking: false, files: [] };
   }
 
-  const raw = (match[1] ?? match[3])!.trim();
+  let raw = (match[1] ?? match[3])!.trim();
   const description = (match[2] ?? match[4])!.trim();
 
+  // Detect trailing `!` breaking marker
+  let breaking = false;
+  if (raw.endsWith("!")) {
+    breaking = true;
+    raw = raw.slice(0, -1);
+  }
+
   const scopeMatch = SCOPE_PATTERN.exec(raw);
-  const keyword = scopeMatch ? scopeMatch[1]! : raw;
-  const commitScope = scopeMatch ? scopeMatch[2]!.trim() : null;
+  let keyword: string;
+  let commitScope: string | null;
+
+  if (scopeMatch) {
+    keyword = scopeMatch[1]!;
+    commitScope = scopeMatch[2]!.trim();
+  } else {
+    keyword = raw;
+    commitScope = null;
+  }
 
   const type = TYPE_MAP[keyword.toLowerCase()] ?? null;
 
-  return { hash, message: trimmed, type, commitScope, description, files: [] };
+  // Scan body for BREAKING CHANGE footer
+  if (!breaking && body && BREAKING_FOOTER_PATTERN.test(body)) {
+    breaking = true;
+  }
+
+  return { hash, message: trimmed, type, commitScope, description, breaking, files: [] };
 }
 
 export function filterCommitsForPackage(

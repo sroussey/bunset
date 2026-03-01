@@ -37,6 +37,15 @@ Commit format:
 
   An optional scope groups commits under a sub-heading in the changelog.
 
+  Breaking changes (Conventional Commits 1.0.0):
+    Append ! before the colon to mark a breaking change:
+      feat!: Remove old API
+      feat(auth)!: Change token format
+      [feat!] Remove old API
+    Or include a "BREAKING CHANGE:" footer in the commit body.
+    Breaking commits are collected into a "Breaking Changes" section at the
+    top of the changelog entry. A warning is printed if the bump is not major.
+
   Recognized type keywords:
     feat, feature          → Features
     fix, bug, bugfix       → Bug Fixes
@@ -48,6 +57,7 @@ Commit format:
     build                  → Build
     ops                    → Ops
     chore                  → Chores
+    ci                     → CI
   Only sections listed in --sections (or config) are included in the changelog.
   Default sections: feat, fix, perf.
 

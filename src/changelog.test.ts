@@ -18,6 +18,7 @@ function emptyGroups(): GroupedCommits {
     build: [],
     ops: [],
     chore: [],
+    ci: [],
   };
 }
 
@@ -26,13 +27,13 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "Add login" },
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add login" },
       ],
       bugfix: [
-        { hash: "b", message: "", type: "bugfix", commitScope: null, files: [], description: "Fix crash" },
+        { hash: "b", message: "", type: "bugfix", commitScope: null, breaking: false, files: [], description: "Fix crash" },
       ],
       test: [
-        { hash: "c", message: "", type: "test", commitScope: null, files: [], description: "Add tests" },
+        { hash: "c", message: "", type: "test", commitScope: null, breaking: false, files: [], description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.2.0", groups, [], COMMIT_TYPES);
@@ -49,10 +50,10 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "New thing" },
       ],
       test: [
-        { hash: "b", message: "", type: "test", commitScope: null, files: [], description: "Add tests" },
+        { hash: "b", message: "", type: "test", commitScope: null, breaking: false, files: [], description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -64,7 +65,7 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "New thing" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -77,10 +78,10 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", commitScope: null, files: [], description: "Global feature" },
-        { hash: "b", message: "", type: "feature", commitScope: "auth", files: [], description: "Add login" },
-        { hash: "c", message: "", type: "feature", commitScope: "auth", files: [], description: "Add logout" },
-        { hash: "d", message: "", type: "feature", commitScope: "ui", files: [], description: "New dashboard" },
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Global feature" },
+        { hash: "b", message: "", type: "feature", commitScope: "auth", breaking: false, files: [], description: "Add login" },
+        { hash: "c", message: "", type: "feature", commitScope: "auth", breaking: false, files: [], description: "Add logout" },
+        { hash: "d", message: "", type: "feature", commitScope: "ui", breaking: false, files: [], description: "New dashboard" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -102,7 +103,7 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       bugfix: [
-        { hash: "a", message: "", type: "bugfix", commitScope: "parser", files: [], description: "Fix edge case" },
+        { hash: "a", message: "", type: "bugfix", commitScope: "parser", breaking: false, files: [], description: "Fix edge case" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -117,6 +118,57 @@ describe("buildChangelogEntry", () => {
     const entry = buildChangelogEntry("2.0.0", groups, deps);
     expect(entry).toContain("### Updated Dependencies");
     expect(entry).toContain("- `lodash`: 4.18.0");
+  });
+
+  test("renders Breaking Changes section first when breaking commits exist", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: true, files: [], description: "Remove old API" },
+        { hash: "b", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add new API" },
+      ],
+      bugfix: [
+        { hash: "c", message: "", type: "bugfix", commitScope: "parser", breaking: true, files: [], description: "Change return type" },
+      ],
+    };
+    const entry = buildChangelogEntry("2.0.0", groups, [], ["feature", "bugfix"]);
+    expect(entry).toContain("### Breaking Changes");
+    expect(entry).toContain("- **features**: Remove old API");
+    expect(entry).toContain("- **bug fixes(parser)**: Change return type");
+
+    // Breaking Changes section appears before Features
+    const breakingIdx = entry.indexOf("### Breaking Changes");
+    const featuresIdx = entry.indexOf("### Features");
+    expect(breakingIdx).toBeLessThan(featuresIdx);
+  });
+
+  test("breaking section appears even when commit type is not in sections", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      chore: [
+        { hash: "a", message: "", type: "chore", commitScope: null, breaking: true, files: [], description: "Drop Node 14 support" },
+      ],
+      feature: [
+        { hash: "b", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add feature" },
+      ],
+    };
+    // sections only includes "feature", not "chore"
+    const entry = buildChangelogEntry("3.0.0", groups, [], ["feature"]);
+    expect(entry).toContain("### Breaking Changes");
+    expect(entry).toContain("- **chores**: Drop Node 14 support");
+    // Chore section itself should not appear
+    expect(entry).not.toContain("### Chores");
+  });
+
+  test("no Breaking Changes section when no breaking commits", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add feature" },
+      ],
+    };
+    const entry = buildChangelogEntry("1.1.0", groups);
+    expect(entry).not.toContain("### Breaking Changes");
   });
 });
 

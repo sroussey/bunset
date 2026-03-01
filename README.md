@@ -65,7 +65,22 @@ All these styles work:
 
 An optional scope groups commits under a `#### scope` sub-heading within their type section in the changelog.
 
-Recognized type keywords:
+#### Breaking Changes
+
+Append `!` before the colon (or closing bracket) to mark a commit as a breaking change, per [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
+
+```
+feat!: Remove old API
+feat(auth)!: Change token format
+[feat!] Remove old API
+```
+
+A `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer in the commit body is also detected.
+
+Breaking commits are collected into a **Breaking Changes** section at the top of each changelog entry, regardless of which `--sections` are configured. If breaking changes are detected and the bump type is not `major`, a warning is printed.
+
+#### Recognized Type Keywords
+
 - `feat`, `feature` — listed under **Features**
 - `fix`, `bug`, `bugfix` — listed under **Bug Fixes**
 - `refactor` — listed under **Refactors**
@@ -76,6 +91,7 @@ Recognized type keywords:
 - `build` — listed under **Build**
 - `ops` — listed under **Ops**
 - `chore` — listed under **Chores**
+- `ci` — listed under **CI**
 
 Only sections listed in `--sections` (or the `sections` config option) appear in the changelog. The default is `feat,fix,perf`.
 

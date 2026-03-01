@@ -10,7 +10,8 @@ export type CommitType =
   | "docs"
   | "build"
   | "ops"
-  | "chore";
+  | "chore"
+  | "ci";
 
 export interface CliOptions {
   scope: PackageScope;
@@ -31,6 +32,7 @@ export interface ParsedCommit {
   type: CommitType | null;
   commitScope: string | null;
   description: string;
+  breaking: boolean;
   files: string[];
 }
 

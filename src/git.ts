@@ -12,24 +12,31 @@ export async function getLastTag(cwd: string): Promise<string | null> {
 export async function getCommitsSince(
   cwd: string,
   sinceRef: string | null,
-): Promise<{ hash: string; message: string }[]> {
+): Promise<{ hash: string; message: string; body: string }[]> {
+  const fmt = "%x00%H%x00%s%x00%b";
   let result;
   if (sinceRef) {
     result =
-      await $`git -C ${cwd} log ${sinceRef}..HEAD --pretty=format:%H%n%s --no-merges`.quiet();
+      await $`git -C ${cwd} log ${sinceRef}..HEAD --pretty=format:${fmt} --no-merges`.quiet();
   } else {
     result =
-      await $`git -C ${cwd} log --pretty=format:%H%n%s --no-merges`.quiet();
+      await $`git -C ${cwd} log --pretty=format:${fmt} --no-merges`.quiet();
   }
 
   const text = result.text().trim();
   if (!text) return [];
 
-  const lines = text.split("\n");
-  const commits: { hash: string; message: string }[] = [];
+  const commits: { hash: string; message: string; body: string }[] = [];
+  // Split on the leading \x00 that starts each record
+  const records = text.split("\x00");
 
-  for (let i = 0; i < lines.length - 1; i += 2) {
-    commits.push({ hash: lines[i]!, message: lines[i + 1]! });
+  // records[0] is empty (before the first \x00), then groups of 3: hash, subject, body
+  for (let i = 1; i + 2 < records.length; i += 3) {
+    commits.push({
+      hash: records[i]!.trim(),
+      message: records[i + 1]!.trim(),
+      body: records[i + 2]!.trim(),
+    });
   }
 
   return commits;

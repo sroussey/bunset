@@ -14,9 +14,10 @@ Options:
   --all                Update all packages (monorepo)
   --changed            Update only changed packages (monorepo)
   --commit             Commit the version bump and changelog
-  --tag                Create git tags for released versions
+  --no-tag             Do not create git tags for released versions
   --per-package-tags   Use package-scoped tags (pkg@version) instead of v-prefixed
   --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
+  --dry-run            Preview changes without writing files, committing, or tagging
   --help, -h           Show this help message
 
 When --patch/--minor/--major is omitted, you will be prompted interactively.
@@ -67,6 +68,7 @@ export function resolveOptions(
       tag: { type: "boolean", default: true },
       "per-package-tags": { type: "boolean", default: false },
       sections: { type: "string" },
+      "dry-run": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
     strict: true,
@@ -84,7 +86,7 @@ export function resolveOptions(
   const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
 
   const commit = values.commit ? true : (config.commit ?? false);
-  const tag = values.tag ? true : (config.tag ?? true);
+  const tag = values.tag === false ? false : (config.tag ?? true);
   const perPackageTags = values["per-package-tags"]
     ? true
     : (config.perPackageTags ?? false);
@@ -92,6 +94,8 @@ export function resolveOptions(
   const sections = parseSections(values.sections as string | undefined)
     ?? config.sections
     ?? DEFAULT_SECTIONS;
+
+  const dryRun = values["dry-run"] ? true : (config.dryRun ?? false);
 
   if (bump && scope) {
     return { scope, bump, commit, tag, perPackageTags, sections };
@@ -137,6 +141,7 @@ interface MergedDefaults {
   tag: boolean;
   perPackageTags: boolean;
   sections: CommitType[];
+  dryRun: boolean;
 }
 
 async function promptForMissing(

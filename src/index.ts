@@ -45,6 +45,67 @@ if (packages.length === 0) {
   console.log("No changed packages found. Nothing to do.");
   process.exit(0);
 }
+if (options.dryRun) {
+  console.log("--- Dry Run ---\n");
+
+  const tags: string[] = [];
+
+  for (const pkg of packages) {
+    const groups = getPackageGroups(pkg, parsed);
+    const hasChanges = packageHasChanges(groups);
+
+    if (!hasChanges && options.perPackageTags) {
+      console.log(`${pkg.name}: no matching commits, skipping.`);
+      continue;
+    }
+
+    const oldVersion = pkg.version ?? "0.0.0";
+    const newVersion = bumpVersion(oldVersion, options.bump);
+    console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
+
+    const updatedDeps = await getUpdatedDependencies(
+      cwd,
+      pkg.packageJsonPath,
+      lastTag,
+    );
+    const entry = buildChangelogEntry(
+      newVersion,
+      groups,
+      updatedDeps,
+      options.sections,
+    );
+
+    console.log(`\nChangelog entry for ${pkg.name}:`);
+    console.log(entry);
+
+    if (options.tag) {
+      if (options.perPackageTags) {
+        tags.push(`${pkg.name}@${newVersion}`);
+      } else {
+        tags.push(`v${newVersion}`);
+      }
+    }
+  }
+
+  if (options.commit) {
+    const msg =
+      packages.length === 1
+        ? `chore: release ${packages[0]!.name}@${bumpVersion(packages[0]!.version ?? "0.0.0", options.bump)}`
+        : `chore: release ${packages.length} packages`;
+    console.log(`Would commit: ${msg}`);
+  } else {
+    console.log("Will not commit (--commit not set).");
+  }
+
+  if (tags.length > 0) {
+    console.log(`Would tag: ${tags.join(", ")}`);
+  } else if (!options.tag) {
+    console.log("Will not tag (--tag not set).");
+  }
+
+  console.log("\nNo files were modified.");
+  process.exit(0);
+}
 
 const tags: string[] = [];
 

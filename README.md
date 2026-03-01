@@ -36,6 +36,7 @@ bunset [options]
 | `--tag` | Tag the commit with new version (default) |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
+| `--dry-run` | Preview changes without writing files, committing, or tagging |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
 

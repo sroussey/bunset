@@ -19,6 +19,7 @@ export interface CliOptions {
   tag: boolean;
   perPackageTags: boolean;
   sections: CommitType[];
+  dryRun: boolean;
 }
 
 export interface ParsedCommit {

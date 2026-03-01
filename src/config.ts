@@ -37,6 +37,11 @@ export async function loadConfig(
     config.perPackageTags = raw["per-package-tags"];
   }
 
+  if (typeof raw["dry-run"] === "boolean") {
+    config.dryRun = raw["dry-run"];
+  }
+
+
   if (Array.isArray(raw.sections)) {
     const sections: CommitType[] = [];
     for (const s of raw.sections) {

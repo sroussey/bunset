@@ -1,0 +1,40 @@
+import path from "node:path";
+import type { CliOptions } from "./types.ts";
+
+const CONFIG_FILE = ".bunset.toml";
+
+const VALID_BUMPS = new Set(["patch", "minor", "major"]);
+const VALID_SCOPES = new Set(["all", "changed"]);
+
+export async function loadConfig(
+  cwd: string,
+): Promise<Partial<CliOptions>> {
+  const file = Bun.file(path.join(cwd, CONFIG_FILE));
+
+  if (!(await file.exists())) return {};
+
+  const raw = Bun.TOML.parse(await file.text()) as Record<string, unknown>;
+  const config: Partial<CliOptions> = {};
+
+  if (typeof raw.bump === "string" && VALID_BUMPS.has(raw.bump)) {
+    config.bump = raw.bump as CliOptions["bump"];
+  }
+
+  if (typeof raw.scope === "string" && VALID_SCOPES.has(raw.scope)) {
+    config.scope = raw.scope as CliOptions["scope"];
+  }
+
+  if (typeof raw.commit === "boolean") {
+    config.commit = raw.commit;
+  }
+
+  if (typeof raw.tag === "boolean") {
+    config.tag = raw.tag;
+  }
+
+  if (typeof raw["per-package-tags"] === "boolean") {
+    config.perPackageTags = raw["per-package-tags"];
+  }
+
+  return config;
+}

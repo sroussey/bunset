@@ -1,12 +1,5 @@
 import type { CommitType, ParsedCommit, GroupedCommits } from "./types.ts";
 
-const CLOSE_DELIMITERS: Record<string, string> = {
-  "[": "]",
-  "(": ")",
-  "{": "}",
-  "<": ">",
-};
-
 const TYPE_MAP: Record<string, CommitType> = {
   feat: "feature",
   feature: "feature",
@@ -16,27 +9,20 @@ const TYPE_MAP: Record<string, CommitType> = {
   test: "test",
 };
 
-export function parseCommit(
-  hash: string,
-  message: string,
-  delimiter: string = "[",
-): ParsedCommit {
+// Matches: [type] desc, [type]: desc, or type: desc
+const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+):\s+(.*)$/;
+
+export function parseCommit(hash: string, message: string): ParsedCommit {
   const trimmed = message.trim();
+  const match = COMMIT_PATTERN.exec(trimmed);
 
-  if (!trimmed.startsWith(delimiter)) {
+  if (!match) {
     return { hash, message: trimmed, type: null, description: trimmed };
   }
 
-  const closeChar = CLOSE_DELIMITERS[delimiter] ?? delimiter;
-  const closeIdx = trimmed.indexOf(closeChar, delimiter.length);
-
-  if (closeIdx === -1) {
-    return { hash, message: trimmed, type: null, description: trimmed };
-  }
-
-  const keyword = trimmed.slice(delimiter.length, closeIdx).trim().toLowerCase();
+  const keyword = (match[1] ?? match[3])!.trim().toLowerCase();
+  const description = (match[2] ?? match[4])!.trim();
   const type = TYPE_MAP[keyword] ?? null;
-  const description = trimmed.slice(closeIdx + closeChar.length).trim();
 
   return { hash, message: trimmed, type, description };
 }

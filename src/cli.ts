@@ -1,7 +1,46 @@
 import { parseArgs } from "node:util";
 import type { BumpType, CliOptions, PackageScope } from "./types.ts";
 
-export function resolveOptions(isWs: boolean): CliOptions | Promise<CliOptions> {
+export function printHelp(): void {
+  console.log(`bunset - Version bumping and changelog generation for Bun projects
+
+Usage: bunset [options]
+
+Options:
+  --patch              Bump patch version (x.y.Z)
+  --minor              Bump minor version (x.Y.0)
+  --major              Bump major version (X.0.0)
+  --all                Update all packages (monorepo)
+  --changed            Update only changed packages (monorepo)
+  --commit             Commit the version bump and changelog
+  --tag                Create git tags for released versions
+  --per-package-tags   Use package-scoped tags (pkg@version) instead of v-prefixed
+  --help, -h           Show this help message
+
+When --patch/--minor/--major is omitted, you will be prompted interactively.
+In a monorepo, you will be prompted for --all or --changed if neither is given.
+
+Commit format:
+  Commits are matched against these patterns (case-insensitive):
+    [type] description     e.g. [feat] Add auth
+    [type]: description    e.g. [feat]: Add auth
+    type: description      e.g. feat: Add auth
+
+  Recognized type keywords:
+    feat, feature          → Features
+    fix, bug, bugfix       → Bug Fixes
+    test                   → Tests
+  Commits without a recognized type are excluded from the changelog.
+
+Config:
+  Place a .bunset.toml in your project root to set persistent defaults.
+  CLI flags always override config values. See README for format.`);
+}
+
+export function resolveOptions(
+  isWs: boolean,
+  config: Partial<CliOptions> = {},
+): CliOptions | Promise<CliOptions> {
   const { values } = parseArgs({
     args: Bun.argv.slice(2),
     options: {
@@ -13,26 +52,38 @@ export function resolveOptions(isWs: boolean): CliOptions | Promise<CliOptions> 
       commit: { type: "boolean", default: false },
       tag: { type: "boolean", default: false },
       "per-package-tags": { type: "boolean", default: false },
-      delimiter: { type: "string", default: "[" },
+      help: { type: "boolean", short: "h", default: false },
     },
     strict: true,
   });
 
-  const bump = resolveBump(values);
-  const scope = resolveScope(values, isWs);
-
-  if (bump && scope) {
-    return {
-      scope,
-      bump,
-      commit: values.commit!,
-      tag: values.tag!,
-      perPackageTags: values["per-package-tags"]!,
-      delimiter: values.delimiter!,
-    };
+  if (values.help) {
+    printHelp();
+    process.exit(0);
   }
 
-  return promptForMissing(values, bump, scope, isWs);
+  const cliBump = resolveBump(values);
+  const cliScope = resolveScope(values, isWs);
+
+  const bump = cliBump ?? config.bump ?? null;
+  const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
+
+  const commit = values.commit ? true : (config.commit ?? false);
+  const tag = values.tag ? true : (config.tag ?? false);
+  const perPackageTags = values["per-package-tags"]
+    ? true
+    : (config.perPackageTags ?? false);
+
+  if (bump && scope) {
+    return { scope, bump, commit, tag, perPackageTags };
+  }
+
+  return promptForMissing(
+    { commit, tag, perPackageTags },
+    bump,
+    scope,
+    isWs,
+  );
 }
 
 function resolveBump(values: Record<string, unknown>): BumpType | null {
@@ -52,8 +103,14 @@ function resolveScope(
   return null;
 }
 
+interface MergedDefaults {
+  commit: boolean;
+  tag: boolean;
+  perPackageTags: boolean;
+}
+
 async function promptForMissing(
-  values: Record<string, unknown>,
+  merged: MergedDefaults,
   bump: BumpType | null,
   scope: PackageScope | null,
   isWs: boolean,
@@ -80,10 +137,7 @@ async function promptForMissing(
   return {
     scope: scope ?? "all",
     bump,
-    commit: values.commit as boolean,
-    tag: values.tag as boolean,
-    perPackageTags: values["per-package-tags"] as boolean,
-    delimiter: values.delimiter as string,
+    ...merged,
   };
 }
 

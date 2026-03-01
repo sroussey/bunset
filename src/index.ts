@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
+
 import { resolveOptions } from "./cli.ts";
+import { loadConfig } from "./config.ts";
 import { parseCommit, groupCommits } from "./commits.ts";
 import { buildChangelogEntry, writeChangelog } from "./changelog.ts";
 import { getLastTag, getCommitsSince, commitAndTag } from "./git.ts";
@@ -14,7 +16,8 @@ import { updatePackageVersion } from "./version.ts";
 const cwd = process.cwd();
 
 const isWs = await isWorkspace(cwd);
-const options = await resolveOptions(isWs);
+const config = await loadConfig(cwd);
+const options = await resolveOptions(isWs, config);
 
 const allPackages = await getAllPackages(cwd);
 const lastTag = await getLastTag(cwd);
@@ -25,9 +28,7 @@ if (rawCommits.length === 0) {
   process.exit(0);
 }
 
-const parsed = rawCommits.map((c) =>
-  parseCommit(c.hash, c.message, options.delimiter),
-);
+const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message));
 const groups = groupCommits(parsed);
 
 if (

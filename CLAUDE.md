@@ -1,4 +1,4 @@
-# Changeset CLI
+# Steveset CLI
 
 A zero-dependency CLI tool that automates version bumping and changelog generation for Bun workspace monorepos and single packages. Reads git commit history, categorizes by type prefix, bumps semver, updates CHANGELOG.md, and optionally commits/tags.
 

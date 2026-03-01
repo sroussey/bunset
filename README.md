@@ -1,4 +1,4 @@
-# changeset
+# bunset
 
 A zero-dependency CLI tool that automates version bumping and changelog generation for Bun workspace monorepos and single packages.
 
@@ -20,7 +20,7 @@ Or link it globally:
 
 ```bash
 bun link
-changeset [options]
+bunset [options]
 ```
 
 ### Options
@@ -35,26 +35,44 @@ changeset [options]
 | `--commit` | Auto-commit changes to git |
 | `--tag` | Tag the commit with new version |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
-| `--delimiter` | Commit message prefix delimiter (default: `[`) |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
 
 ### Commit Message Format
 
-Prefix commit messages with a type in brackets:
+Commits are automatically matched against these patterns (case-insensitive):
 
 ```
 [feat] Add user authentication
-[fix] Resolve crash on startup
-[test] Add unit tests for parser
+[fix]: Resolve crash on startup
+test: Add unit tests for parser
 ```
 
-Recognized types:
+All three styles work:
+- `[type] description` — bracketed
+- `[type]: description` — bracketed with colon
+- `type: description` — conventional commits style
+
+Recognized type keywords:
 - `feat`, `feature` — listed under **Features**
 - `fix`, `bug`, `bugfix` — listed under **Bug Fixes**
 - `test` — listed under **Tests**
 
-Commits without a recognized prefix are excluded from the changelog.
+Commits without a recognized type keyword are excluded from the changelog.
+
+### Config File
+
+Place a `.bunset.toml` in your project root to set persistent defaults so you don't have to pass the same flags every time:
+
+```toml
+bump = "patch"           # "patch" | "minor" | "major"
+scope = "changed"        # "all" | "changed"
+commit = true
+tag = true
+per-package-tags = false
+```
+
+All fields are optional. CLI flags always take priority over config values. If `bump` or `scope` is set in config, the interactive prompt for that option is skipped.
 
 ## Testing
 

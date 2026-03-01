@@ -8,7 +8,6 @@ export interface CliOptions {
   commit: boolean;
   tag: boolean;
   perPackageTags: boolean;
-  delimiter: string;
 }
 
 export interface ParsedCommit {

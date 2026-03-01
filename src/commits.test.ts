@@ -2,56 +2,90 @@ import { test, expect, describe } from "bun:test";
 import { parseCommit, groupCommits } from "./commits.ts";
 
 describe("parseCommit", () => {
-  test("parses feature commit", () => {
+  // [type] description
+  test("parses [feat] commit", () => {
     const result = parseCommit("abc123", "[feat] Add user auth");
     expect(result.type).toBe("feature");
     expect(result.description).toBe("Add user auth");
   });
 
-  test("parses feature with full keyword", () => {
+  test("parses [feature] commit", () => {
     const result = parseCommit("abc123", "[feature] Add login");
     expect(result.type).toBe("feature");
     expect(result.description).toBe("Add login");
   });
 
-  test("parses bugfix commit", () => {
+  test("parses [fix] commit", () => {
     const result = parseCommit("def456", "[fix] Resolve crash on startup");
     expect(result.type).toBe("bugfix");
     expect(result.description).toBe("Resolve crash on startup");
   });
 
-  test("parses bug keyword", () => {
+  test("parses [bug] commit", () => {
     const result = parseCommit("def456", "[bug] Fix null pointer");
     expect(result.type).toBe("bugfix");
   });
 
-  test("parses bugfix keyword", () => {
+  test("parses [bugfix] commit", () => {
     const result = parseCommit("def456", "[bugfix] Handle edge case");
     expect(result.type).toBe("bugfix");
   });
 
-  test("parses test commit", () => {
+  test("parses [test] commit", () => {
     const result = parseCommit("ghi789", "[test] Add unit tests for parser");
     expect(result.type).toBe("test");
     expect(result.description).toBe("Add unit tests for parser");
   });
 
-  test("returns null type for unrecognized prefix", () => {
+  // [type]: description
+  test("parses [feat]: commit", () => {
+    const result = parseCommit("abc123", "[feat]: Add user auth");
+    expect(result.type).toBe("feature");
+    expect(result.description).toBe("Add user auth");
+  });
+
+  test("parses [fix]: commit", () => {
+    const result = parseCommit("def456", "[fix]: Resolve crash");
+    expect(result.type).toBe("bugfix");
+    expect(result.description).toBe("Resolve crash");
+  });
+
+  // type: description
+  test("parses feat: commit", () => {
+    const result = parseCommit("abc123", "feat: Add user auth");
+    expect(result.type).toBe("feature");
+    expect(result.description).toBe("Add user auth");
+  });
+
+  test("parses fix: commit", () => {
+    const result = parseCommit("def456", "fix: Resolve crash");
+    expect(result.type).toBe("bugfix");
+    expect(result.description).toBe("Resolve crash");
+  });
+
+  test("parses test: commit", () => {
+    const result = parseCommit("ghi789", "test: Add parser tests");
+    expect(result.type).toBe("test");
+    expect(result.description).toBe("Add parser tests");
+  });
+
+  // Edge cases
+  test("returns null type for unrecognized [prefix]", () => {
     const result = parseCommit("jkl012", "[docs] Update readme");
     expect(result.type).toBeNull();
     expect(result.description).toBe("Update readme");
   });
 
-  test("returns null type for commits without delimiter", () => {
+  test("returns null type for unrecognized prefix:", () => {
+    const result = parseCommit("jkl012", "docs: Update readme");
+    expect(result.type).toBeNull();
+    expect(result.description).toBe("Update readme");
+  });
+
+  test("returns null type for plain commits", () => {
     const result = parseCommit("mno345", "Regular commit message");
     expect(result.type).toBeNull();
     expect(result.description).toBe("Regular commit message");
-  });
-
-  test("handles custom delimiter", () => {
-    const result = parseCommit("pqr678", "(feat) New feature", "(");
-    expect(result.type).toBe("feature");
-    expect(result.description).toBe("New feature");
   });
 
   test("is case-insensitive for type keyword", () => {
@@ -59,7 +93,12 @@ describe("parseCommit", () => {
     expect(result.type).toBe("feature");
   });
 
-  test("handles missing close delimiter", () => {
+  test("is case-insensitive for bare prefix", () => {
+    const result = parseCommit("stu901", "FEAT: Uppercase type");
+    expect(result.type).toBe("feature");
+  });
+
+  test("handles missing close bracket", () => {
     const result = parseCommit("vwx234", "[feat No closing bracket");
     expect(result.type).toBeNull();
   });

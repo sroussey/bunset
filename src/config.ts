@@ -45,6 +45,10 @@ export async function loadConfig(
     config.filterByPackage = raw["filter-by-package"];
   }
 
+  if (typeof raw["tag-prefix"] === "string") {
+    config.tagPrefix = raw["tag-prefix"];
+  }
+
   if (Array.isArray(raw.sections)) {
     const sections: CommitType[] = [];
     for (const s of raw.sections) {

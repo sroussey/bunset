@@ -117,7 +117,7 @@ if (options.dryRun) {
       if (options.perPackageTags) {
         tags.push(`${pkg.name}@${newVersion}`);
       } else {
-        tags.push(`v${newVersion}`);
+        tags.push(`${options.tagPrefix}${newVersion}`);
       }
     }
   }
@@ -177,7 +177,7 @@ for (const pkg of packages) {
     if (options.perPackageTags) {
       tags.push(`${pkg.name}@${newVersion}`);
     } else {
-      tags.push(`v${newVersion}`);
+      tags.push(`${options.tagPrefix}${newVersion}`);
     }
   }
 }

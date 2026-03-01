@@ -13,9 +13,10 @@ Options:
   --major              Bump major version (X.0.0)
   --all                Update all packages (monorepo)
   --changed            Update only changed packages (monorepo)
-  --commit             Commit the version bump and changelog
+  --no-commit          Do not commit the version bump and changelog
   --no-tag             Do not create git tags for released versions
-  --per-package-tags   Use package-scoped tags (pkg@version) instead of v-prefixed
+  --per-package-tags   Use package-scoped tags (pkg@version) instead of prefixed
+  --tag-prefix <str>   Tag prefix (default: "v", e.g. v1.2.3)
   --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
   --dry-run            Preview changes without writing files, committing, or tagging
   --no-filter-by-package
@@ -66,12 +67,13 @@ export function resolveOptions(
       patch: { type: "boolean", default: false },
       minor: { type: "boolean", default: false },
       major: { type: "boolean", default: false },
-      commit: { type: "boolean", default: false },
+      commit: { type: "boolean", default: true },
       tag: { type: "boolean", default: true },
       "per-package-tags": { type: "boolean", default: false },
       sections: { type: "string" },
       "dry-run": { type: "boolean", default: false },
       "filter-by-package": { type: "boolean", default: true },
+      "tag-prefix": { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
     strict: true,
@@ -88,7 +90,7 @@ export function resolveOptions(
   const bump = cliBump ?? config.bump ?? null;
   const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
 
-  const commit = values.commit ? true : (config.commit ?? false);
+  const commit = values.commit === false ? false : (config.commit ?? true);
   const tag = values.tag === false ? false : (config.tag ?? true);
   const perPackageTags = values["per-package-tags"]
     ? true
@@ -104,12 +106,16 @@ export function resolveOptions(
     ? false
     : (config.filterByPackage ?? true);
 
+  const tagPrefix = values["tag-prefix"] as string | undefined
+    ?? config.tagPrefix
+    ?? "v";
+
   if (bump && scope) {
-    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections, dryRun, filterByPackage },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix },
     bump,
     scope,
     isWs,
@@ -150,6 +156,7 @@ interface MergedDefaults {
   sections: CommitType[];
   dryRun: boolean;
   filterByPackage: boolean;
+  tagPrefix: string;
 }
 
 async function promptForMissing(

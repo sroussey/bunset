@@ -32,9 +32,10 @@ bunset [options]
 | `--major` | Major version bump |
 | `--all` | Update all workspace packages |
 | `--changed` | Update only changed packages (default for workspaces) |
-| `--commit` | Auto-commit changes to git |
+| `--no-commit` | Do not commit changes to git (commits by default) |
 | `--tag` | Tag the commit with new version (default) |
-| `--per-package-tags` | Use `pkg@1.2.3` tags instead of `v1.2.3` |
+| `--per-package-tags` | Use `pkg@1.2.3` tags instead of prefixed tags |
+| `--tag-prefix` | Tag prefix (default: `v`, e.g. `v1.2.3`) |
 | `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
@@ -97,6 +98,7 @@ per-package-tags = false
 sections = ["feat", "fix", "perf"]          # changelog sections and order
 dry-run = false                             # preview without writing
 filter-by-package = true                    # per-package commit filtering (monorepo)
+tag-prefix = "v"                            # prefix for version tags
 ```
 
 All fields are optional. CLI flags always take priority over config values. If `bump` or `scope` is set in config, the interactive prompt for that option is skipped.

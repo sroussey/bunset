@@ -47,12 +47,18 @@ Commits are automatically matched against these patterns (case-insensitive):
 [feat] Add user authentication
 [fix]: Resolve crash on startup
 test: Add unit tests for parser
+feat(auth): Add login page
+[fix(ui)]: Fix button alignment
 ```
 
-All three styles work:
+All these styles work:
 - `[type] description` — bracketed
 - `[type]: description` — bracketed with colon
 - `type: description` — conventional commits style
+- `type(scope): description` — with optional scope
+- `[type(scope)] description` — bracketed with optional scope
+
+An optional scope groups commits under a `#### scope` sub-heading within their type section in the changelog.
 
 Recognized type keywords:
 - `feat`, `feature` — listed under **Features**

@@ -26,13 +26,13 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", description: "Add login" },
+        { hash: "a", message: "", type: "feature", commitScope: null, description: "Add login" },
       ],
       bugfix: [
-        { hash: "b", message: "", type: "bugfix", description: "Fix crash" },
+        { hash: "b", message: "", type: "bugfix", commitScope: null, description: "Fix crash" },
       ],
       test: [
-        { hash: "c", message: "", type: "test", description: "Add tests" },
+        { hash: "c", message: "", type: "test", commitScope: null, description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.2.0", groups, [], COMMIT_TYPES);
@@ -49,10 +49,10 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, description: "New thing" },
       ],
       test: [
-        { hash: "b", message: "", type: "test", description: "Add tests" },
+        { hash: "b", message: "", type: "test", commitScope: null, description: "Add tests" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
@@ -64,13 +64,51 @@ describe("buildChangelogEntry", () => {
     const groups: GroupedCommits = {
       ...emptyGroups(),
       feature: [
-        { hash: "a", message: "", type: "feature", description: "New thing" },
+        { hash: "a", message: "", type: "feature", commitScope: null, description: "New thing" },
       ],
     };
     const entry = buildChangelogEntry("1.0.0", groups);
     expect(entry).toContain("### Features");
     expect(entry).not.toContain("### Bug Fixes");
     expect(entry).not.toContain("### Performance");
+  });
+
+  test("groups scoped commits under sub-headings", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [
+        { hash: "a", message: "", type: "feature", commitScope: null, description: "Global feature" },
+        { hash: "b", message: "", type: "feature", commitScope: "auth", description: "Add login" },
+        { hash: "c", message: "", type: "feature", commitScope: "auth", description: "Add logout" },
+        { hash: "d", message: "", type: "feature", commitScope: "ui", description: "New dashboard" },
+      ],
+    };
+    const entry = buildChangelogEntry("1.0.0", groups);
+    expect(entry).toContain("### Features");
+    expect(entry).toContain("- Global feature");
+    expect(entry).toContain("#### auth");
+    expect(entry).toContain("- Add login");
+    expect(entry).toContain("- Add logout");
+    expect(entry).toContain("#### ui");
+    expect(entry).toContain("- New dashboard");
+
+    // Unscoped comes before scoped
+    const globalIdx = entry.indexOf("- Global feature");
+    const authIdx = entry.indexOf("#### auth");
+    expect(globalIdx).toBeLessThan(authIdx);
+  });
+
+  test("renders only scoped commits when no unscoped", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      bugfix: [
+        { hash: "a", message: "", type: "bugfix", commitScope: "parser", description: "Fix edge case" },
+      ],
+    };
+    const entry = buildChangelogEntry("1.0.0", groups);
+    expect(entry).toContain("### Bug Fixes");
+    expect(entry).toContain("#### parser");
+    expect(entry).toContain("- Fix edge case");
   });
 
   test("includes updated dependencies", () => {

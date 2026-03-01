@@ -35,22 +35,28 @@ export function normalizeType(keyword: string): CommitType | null {
   return TYPE_MAP[keyword.toLowerCase()] ?? null;
 }
 
-// Matches: [type] desc, [type]: desc, or type: desc
-const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+):\s+(.*)$/;
+// Matches: [type(scope)] desc, [type]: desc, type(scope): desc, type: desc
+const COMMIT_PATTERN = /^\[([^\]]+)\]:?\s*(.*)$|^(\w+(?:\([^)]*\))?):\s+(.*)$/;
+const SCOPE_PATTERN = /^(\w+)\(([^)]*)\)$/;
 
 export function parseCommit(hash: string, message: string): ParsedCommit {
   const trimmed = message.trim();
   const match = COMMIT_PATTERN.exec(trimmed);
 
   if (!match) {
-    return { hash, message: trimmed, type: null, description: trimmed };
+    return { hash, message: trimmed, type: null, commitScope: null, description: trimmed };
   }
 
-  const keyword = (match[1] ?? match[3])!.trim().toLowerCase();
+  const raw = (match[1] ?? match[3])!.trim();
   const description = (match[2] ?? match[4])!.trim();
-  const type = TYPE_MAP[keyword] ?? null;
 
-  return { hash, message: trimmed, type, description };
+  const scopeMatch = SCOPE_PATTERN.exec(raw);
+  const keyword = scopeMatch ? scopeMatch[1]! : raw;
+  const commitScope = scopeMatch ? scopeMatch[2]!.trim() : null;
+
+  const type = TYPE_MAP[keyword.toLowerCase()] ?? null;
+
+  return { hash, message: trimmed, type, commitScope, description };
 }
 
 export function groupCommits(commits: ParsedCommit[]): GroupedCommits {

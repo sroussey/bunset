@@ -24,9 +24,13 @@ In a monorepo, you will be prompted for --all or --changed if neither is given.
 
 Commit format:
   Commits are matched against these patterns (case-insensitive):
-    [type] description     e.g. [feat] Add auth
-    [type]: description    e.g. [feat]: Add auth
-    type: description      e.g. feat: Add auth
+    [type] description          e.g. [feat] Add auth
+    [type]: description         e.g. [feat]: Add auth
+    type: description           e.g. feat: Add auth
+    type(scope): description    e.g. feat(auth): Add login
+    [type(scope)] description   e.g. [feat(auth)] Add login
+
+  An optional scope groups commits under a sub-heading in the changelog.
 
   Recognized type keywords:
     feat, feature          → Features

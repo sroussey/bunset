@@ -6,6 +6,7 @@ describe("parseCommit", () => {
   test("parses [feat] commit", () => {
     const result = parseCommit("abc123", "[feat] Add user auth");
     expect(result.type).toBe("feature");
+    expect(result.commitScope).toBeNull();
     expect(result.description).toBe("Add user auth");
   });
 
@@ -129,6 +130,44 @@ describe("parseCommit", () => {
     expect(result.description).toBe("Bump version");
   });
 
+  // Scoped commits: [type(scope)] description
+  test("parses [feat(auth)] commit with scope", () => {
+    const result = parseCommit("s1", "[feat(auth)] Add login");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("auth");
+    expect(result.description).toBe("Add login");
+  });
+
+  test("parses [fix(ui)] commit with scope", () => {
+    const result = parseCommit("s2", "[fix(ui)] Fix button color");
+    expect(result.type).toBe("bugfix");
+    expect(result.commitScope).toBe("ui");
+    expect(result.description).toBe("Fix button color");
+  });
+
+  // Scoped commits: [type(scope)]: description
+  test("parses [feat(api)]: commit with scope and colon", () => {
+    const result = parseCommit("s3", "[feat(api)]: Add endpoint");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("api");
+    expect(result.description).toBe("Add endpoint");
+  });
+
+  // Scoped commits: type(scope): description
+  test("parses feat(auth): commit with scope", () => {
+    const result = parseCommit("s4", "feat(auth): Add logout");
+    expect(result.type).toBe("feature");
+    expect(result.commitScope).toBe("auth");
+    expect(result.description).toBe("Add logout");
+  });
+
+  test("parses fix(parser): commit with scope", () => {
+    const result = parseCommit("s5", "fix(parser): Handle edge case");
+    expect(result.type).toBe("bugfix");
+    expect(result.commitScope).toBe("parser");
+    expect(result.description).toBe("Handle edge case");
+  });
+
   // Edge cases
   test("returns null type for unrecognized [prefix]", () => {
     const result = parseCommit("jkl012", "[unknown] Something");
@@ -145,6 +184,7 @@ describe("parseCommit", () => {
   test("returns null type for plain commits", () => {
     const result = parseCommit("mno345", "Regular commit message");
     expect(result.type).toBeNull();
+    expect(result.commitScope).toBeNull();
     expect(result.description).toBe("Regular commit message");
   });
 
@@ -167,13 +207,13 @@ describe("parseCommit", () => {
 describe("groupCommits", () => {
   test("groups commits by type", () => {
     const commits = [
-      { hash: "a", message: "", type: "feature" as const, description: "F1" },
-      { hash: "b", message: "", type: "bugfix" as const, description: "B1" },
-      { hash: "c", message: "", type: "test" as const, description: "T1" },
-      { hash: "d", message: "", type: "feature" as const, description: "F2" },
-      { hash: "e", message: "", type: "refactor" as const, description: "R1" },
-      { hash: "f", message: "", type: "chore" as const, description: "C1" },
-      { hash: "g", message: "", type: null, description: "Ignored" },
+      { hash: "a", message: "", type: "feature" as const, commitScope: null, description: "F1" },
+      { hash: "b", message: "", type: "bugfix" as const, commitScope: null, description: "B1" },
+      { hash: "c", message: "", type: "test" as const, commitScope: null, description: "T1" },
+      { hash: "d", message: "", type: "feature" as const, commitScope: "auth", description: "F2" },
+      { hash: "e", message: "", type: "refactor" as const, commitScope: null, description: "R1" },
+      { hash: "f", message: "", type: "chore" as const, commitScope: null, description: "C1" },
+      { hash: "g", message: "", type: null, commitScope: null, description: "Ignored" },
     ];
     const groups = groupCommits(commits);
     expect(groups.feature).toHaveLength(2);

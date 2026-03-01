@@ -25,6 +25,7 @@ export interface ParsedCommit {
   hash: string;
   message: string;
   type: CommitType | null;
+  commitScope: string | null;
   description: string;
 }
 

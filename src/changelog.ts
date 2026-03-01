@@ -24,11 +24,36 @@ export function buildChangelogEntry(
 
   for (const type of sections) {
     const commits = groups[type];
-    if (commits.length > 0) {
-      lines.push(`### ${SECTION_HEADINGS[type]}`, "");
-      for (const c of commits) {
+    if (commits.length === 0) continue;
+
+    lines.push(`### ${SECTION_HEADINGS[type]}`, "");
+
+    const unscoped = commits.filter((c) => !c.commitScope);
+    const scoped = new Map<string, typeof commits>();
+    for (const c of commits) {
+      if (c.commitScope) {
+        const list = scoped.get(c.commitScope);
+        if (list) list.push(c);
+        else scoped.set(c.commitScope, [c]);
+      }
+    }
+
+    for (const c of unscoped) {
+      lines.push(`- ${c.description}`);
+    }
+    if (unscoped.length > 0 && scoped.size > 0) {
+      lines.push("");
+    }
+
+    for (const [scope, scopeCommits] of scoped) {
+      lines.push(`#### ${scope}`, "");
+      for (const c of scopeCommits) {
         lines.push(`- ${c.description}`);
       }
+      lines.push("");
+    }
+
+    if (unscoped.length > 0 && scoped.size === 0) {
       lines.push("");
     }
   }

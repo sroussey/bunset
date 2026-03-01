@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+### Bug Fixes
+
+- link back to github
+
 ## 1.0.1
 
 ### Bug Fixes

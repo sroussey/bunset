@@ -1,0 +1,14 @@
+{
+  "name": "changeset",
+  "module": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "changeset": "src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

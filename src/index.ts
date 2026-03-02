@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { $ } from "bun";
 import { resolveOptions } from "./cli.ts";
 import { loadConfig } from "./config.ts";
 import {
@@ -148,6 +149,7 @@ if (options.dryRun) {
   if (!dbg) console.log("--- Dry Run ---\n");
 
   const tags: string[] = [];
+  const filesToCommit: string[] = [];
 
   for (const pkg of packages) {
     const groups = getPackageGroups(pkg, parsed);
@@ -179,6 +181,7 @@ if (options.dryRun) {
     const oldVersion = pkg.version ?? "0.0.0";
     const newVersion = bumpVersion(oldVersion, options.bump);
     console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
+    filesToCommit.push(pkg.packageJsonPath, `${pkg.path}/CHANGELOG.md`);
 
     const updatedDeps = await getUpdatedDependencies(
       cwd,
@@ -206,6 +209,8 @@ if (options.dryRun) {
 
   const uniqueTags = [...new Set(tags)];
 
+  filesToCommit.push(`${cwd}/bun.lock`);
+
   if (options.commit) {
     const msg =
       packages.length === 1
@@ -222,11 +227,15 @@ if (options.dryRun) {
     console.log("Will not tag (--tag not set).");
   }
 
-  console.log("\nNo files were modified.");
+  console.log(`\nFiles that would be modified (${filesToCommit.length}):`);
+  for (const f of filesToCommit) {
+    console.log(`  ${f}`);
+  }
   process.exit(0);
 }
 
 const tags: string[] = [];
+const changedFiles: string[] = [];
 
 for (const pkg of packages) {
   const groups = getPackageGroups(pkg, parsed);
@@ -242,6 +251,7 @@ for (const pkg of packages) {
     pkg.packageJsonPath,
     options.bump,
   );
+  changedFiles.push(pkg.packageJsonPath);
   console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
 
   const updatedDeps = await getUpdatedDependencies(
@@ -256,6 +266,7 @@ for (const pkg of packages) {
     options.sections,
   );
   await writeChangelog(pkg.path, entry);
+  changedFiles.push(`${pkg.path}/CHANGELOG.md`);
 
   if (options.tag) {
     if (options.perPackageTags) {
@@ -268,12 +279,17 @@ for (const pkg of packages) {
 
 const uniqueTags = [...new Set(tags)];
 
+// Update lockfile after package.json versions changed
+await $`bun install --lockfile-only`.cwd(cwd).quiet();
+changedFiles.push(`${cwd}/bun.lock`);
+debug("updated bun.lock");
+
 if (options.commit) {
   const msg =
     packages.length === 1
       ? `chore: release ${packages[0]!.name}@${(await Bun.file(packages[0]!.packageJsonPath).json()).version}`
       : `chore: release ${packages.length} packages`;
-  await commitAndTag(cwd, msg, options.tag ? uniqueTags : []);
+  await commitAndTag(cwd, msg, options.tag ? uniqueTags : [], changedFiles);
   console.log(`Committed: ${msg}`);
   if (uniqueTags.length > 0) {
     console.log(`Tagged: ${uniqueTags.join(", ")}`);

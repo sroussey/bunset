@@ -63,8 +63,9 @@ export async function commitAndTag(
   cwd: string,
   message: string,
   tags: string[] = [],
+  files: string[] = [],
 ): Promise<void> {
-  await $`git -C ${cwd} add -A`.quiet();
+  await $`git -C ${cwd} add ${files}`.quiet();
   await $`git -C ${cwd} commit -m ${message}`.quiet();
   const skipped: string[] = [];
   for (const tag of tags) {

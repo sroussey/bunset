@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5
+
+### Bug Fixes
+
+- only stage known changed files instead of git add -A
+
 ## 1.0.4
 
 ### Bug Fixes

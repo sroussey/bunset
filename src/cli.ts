@@ -82,26 +82,36 @@ export function resolveOptions(
   isWs: boolean,
   config: Partial<CliOptions> = {},
 ): CliOptions | Promise<CliOptions> {
-  const { values } = parseArgs({
-    args: Bun.argv.slice(2),
-    options: {
-      all: { type: "boolean", default: false },
-      changed: { type: "boolean", default: false },
-      patch: { type: "boolean", default: false },
-      minor: { type: "boolean", default: false },
-      major: { type: "boolean", default: false },
-      commit: { type: "boolean", default: true },
-      tag: { type: "boolean", default: true },
-      "per-package-tags": { type: "boolean", default: false },
-      sections: { type: "string" },
-      "dry-run": { type: "boolean", default: false },
-      "filter-by-package": { type: "boolean", default: true },
-      "tag-prefix": { type: "string" },
-      debug: { type: "boolean", default: false },
-      help: { type: "boolean", short: "h", default: false },
-    },
-    strict: true,
-  });
+  let values: ReturnType<typeof parseArgs>["values"];
+  try {
+    ({ values } = parseArgs({
+      args: Bun.argv.slice(2),
+      options: {
+        all: { type: "boolean", default: false },
+        changed: { type: "boolean", default: false },
+        patch: { type: "boolean", default: false },
+        minor: { type: "boolean", default: false },
+        major: { type: "boolean", default: false },
+        commit: { type: "boolean", default: true },
+        tag: { type: "boolean", default: true },
+        "per-package-tags": { type: "boolean", default: false },
+        sections: { type: "string" },
+        "dry-run": { type: "boolean", default: false },
+        "filter-by-package": { type: "boolean", default: true },
+        "tag-prefix": { type: "string" },
+        debug: { type: "boolean", default: false },
+        help: { type: "boolean", short: "h", default: false },
+      },
+      strict: true,
+    }));
+  } catch (err) {
+    if (err instanceof TypeError && (err as any).code === "ERR_PARSE_ARGS_UNKNOWN_OPTION") {
+      console.error(err.message);
+      console.error("\nRun bunset --help to see available options.");
+      process.exit(1);
+    }
+    throw err;
+  }
 
   if (values.help) {
     printHelp();

@@ -66,7 +66,15 @@ export async function commitAndTag(
 ): Promise<void> {
   await $`git -C ${cwd} add -A`.quiet();
   await $`git -C ${cwd} commit -m ${message}`.quiet();
+  const skipped: string[] = [];
   for (const tag of tags) {
-    await $`git -C ${cwd} tag ${tag}`.quiet();
+    try {
+      await $`git -C ${cwd} tag ${tag}`.quiet();
+    } catch {
+      skipped.push(tag);
+    }
+  }
+  if (skipped.length > 0) {
+    console.warn(`⚠ Skipped existing tags: ${skipped.join(", ")}`);
   }
 }

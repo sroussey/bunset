@@ -204,6 +204,8 @@ if (options.dryRun) {
     }
   }
 
+  const uniqueTags = [...new Set(tags)];
+
   if (options.commit) {
     const msg =
       packages.length === 1
@@ -214,8 +216,8 @@ if (options.dryRun) {
     console.log("Will not commit (--commit not set).");
   }
 
-  if (tags.length > 0) {
-    console.log(`Would tag: ${tags.join(", ")}`);
+  if (uniqueTags.length > 0) {
+    console.log(`Would tag: ${uniqueTags.join(", ")}`);
   } else if (!options.tag) {
     console.log("Will not tag (--tag not set).");
   }
@@ -264,15 +266,17 @@ for (const pkg of packages) {
   }
 }
 
+const uniqueTags = [...new Set(tags)];
+
 if (options.commit) {
   const msg =
     packages.length === 1
       ? `chore: release ${packages[0]!.name}@${(await Bun.file(packages[0]!.packageJsonPath).json()).version}`
       : `chore: release ${packages.length} packages`;
-  await commitAndTag(cwd, msg, options.tag ? tags : []);
+  await commitAndTag(cwd, msg, options.tag ? uniqueTags : []);
   console.log(`Committed: ${msg}`);
-  if (tags.length > 0) {
-    console.log(`Tagged: ${tags.join(", ")}`);
+  if (uniqueTags.length > 0) {
+    console.log(`Tagged: ${uniqueTags.join(", ")}`);
   }
 }
 

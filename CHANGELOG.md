@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+### Bug Fixes
+
+- handle existing tags during commit and tagging process
+
 ## 1.0.3
 
 ### Bug Fixes

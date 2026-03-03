@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.7
+
+### Features
+
+- prompt for commit/tag when not explicitly set
+
+### Bug Fixes
+
+- sync package versions in monorepo when using shared tags
+
 ## 1.0.6
 
 ### Bug Fixes

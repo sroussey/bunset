@@ -279,6 +279,11 @@ for (const pkg of packages) {
 
 const uniqueTags = [...new Set(tags)];
 
+if (changedFiles.length === 0) {
+  console.log("No packages were updated. Nothing to do.");
+  process.exit(0);
+}
+
 // Update lockfile after package.json versions changed
 await $`bun install --lockfile-only`.cwd(cwd).quiet();
 changedFiles.push(`${cwd}/bun.lock`);

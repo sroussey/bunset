@@ -92,8 +92,8 @@ export function resolveOptions(
         patch: { type: "boolean", default: false },
         minor: { type: "boolean", default: false },
         major: { type: "boolean", default: false },
-        commit: { type: "boolean", default: true },
-        tag: { type: "boolean", default: true },
+        commit: { type: "boolean" },
+        tag: { type: "boolean" },
         "per-package-tags": { type: "boolean", default: false },
         sections: { type: "string" },
         "dry-run": { type: "boolean", default: false },
@@ -124,8 +124,8 @@ export function resolveOptions(
   const bump = cliBump ?? config.bump ?? null;
   const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
 
-  const commit = values.commit === false ? false : (config.commit ?? true);
-  const tag = values.tag === false ? false : (config.tag ?? true);
+  const commit = values.commit !== undefined ? (values.commit as boolean) : (config.commit ?? null);
+  const tag = values.tag !== undefined ? (values.tag as boolean) : (config.tag ?? null);
   const perPackageTags = values["per-package-tags"]
     ? true
     : (config.perPackageTags ?? false);
@@ -145,7 +145,7 @@ export function resolveOptions(
     ?? config.tagPrefix
     ?? null;
 
-  if (bump && scope) {
+  if (bump && scope && commit !== null && tag !== null) {
     return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, debug };
   }
 
@@ -185,8 +185,8 @@ function parseSections(raw: string | undefined): CommitType[] | null {
 }
 
 interface MergedDefaults {
-  commit: boolean;
-  tag: boolean;
+  commit: boolean | null;
+  tag: boolean | null;
   perPackageTags: boolean;
   sections: CommitType[];
   dryRun: boolean;
@@ -220,10 +220,26 @@ async function promptForMissing(
     else bump = "patch";
   }
 
+  let { commit, tag } = merged;
+
+  if (commit === null) {
+    process.stdout.write("Commit changes? (y/n) [default: y]: ");
+    const answer = await readLine();
+    commit = answer.trim().toLowerCase() !== "n";
+  }
+
+  if (tag === null) {
+    process.stdout.write("Tag release? (y/n) [default: y]: ");
+    const answer = await readLine();
+    tag = answer.trim().toLowerCase() !== "n";
+  }
+
   return {
     scope: scope ?? "all",
     bump,
     ...merged,
+    commit,
+    tag,
   };
 }
 

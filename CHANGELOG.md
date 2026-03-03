@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.6
+
+### Bug Fixes
+
+- exit cleanly when no packages have changes to commit
+
 ## 1.0.5
 
 ### Bug Fixes

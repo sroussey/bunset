@@ -30,3 +30,15 @@ export async function updatePackageVersion(
   await Bun.write(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
   return { oldVersion, newVersion };
 }
+
+export async function setPackageVersion(
+  packageJsonPath: string,
+  newVersion: string,
+): Promise<{ oldVersion: string; newVersion: string }> {
+  const file = Bun.file(packageJsonPath);
+  const pkg = await file.json();
+  const oldVersion = pkg.version ?? "0.0.0";
+  pkg.version = newVersion;
+  await Bun.write(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
+  return { oldVersion, newVersion };
+}

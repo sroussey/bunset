@@ -21,7 +21,7 @@ import {
   getAllPackages,
   getChangedPackages,
 } from "./workspace.ts";
-import { bumpVersion, updatePackageVersion } from "./version.ts";
+import { bumpVersion, parseSemver, updatePackageVersion, setPackageVersion } from "./version.ts";
 import type { ParsedCommit, GroupedCommits } from "./types.ts";
 
 const cwd = process.cwd();
@@ -145,6 +145,22 @@ function packageHasChanges(groups: GroupedCommits): boolean {
   return options.sections.some((type) => groups[type].length > 0);
 }
 
+// When using shared tags, sync all packages to the same target version
+let targetVersion: string | null = null;
+if (!options.perPackageTags && packages.length > 1) {
+  const maxVersion = packages.reduce((max, pkg) => {
+    const v = pkg.version ?? "0.0.0";
+    const [mj1, mn1, p1] = parseSemver(max);
+    const [mj2, mn2, p2] = parseSemver(v);
+    if (mj2 > mj1) return v;
+    if (mj2 === mj1 && mn2 > mn1) return v;
+    if (mj2 === mj1 && mn2 === mn1 && p2 > p1) return v;
+    return max;
+  }, "0.0.0");
+  targetVersion = bumpVersion(maxVersion, options.bump);
+  debug(`shared tag mode: max version = ${maxVersion}, target version = ${targetVersion}`);
+}
+
 if (options.dryRun) {
   if (!dbg) console.log("--- Dry Run ---\n");
 
@@ -179,7 +195,7 @@ if (options.dryRun) {
     }
 
     const oldVersion = pkg.version ?? "0.0.0";
-    const newVersion = bumpVersion(oldVersion, options.bump);
+    const newVersion = targetVersion ?? bumpVersion(oldVersion, options.bump);
     console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
     filesToCommit.push(pkg.packageJsonPath, `${pkg.path}/CHANGELOG.md`);
 
@@ -212,9 +228,10 @@ if (options.dryRun) {
   filesToCommit.push(`${cwd}/bun.lock`);
 
   if (options.commit) {
+    const releaseVersion = targetVersion ?? bumpVersion(packages[0]!.version ?? "0.0.0", options.bump);
     const msg =
       packages.length === 1
-        ? `chore: release ${packages[0]!.name}@${bumpVersion(packages[0]!.version ?? "0.0.0", options.bump)}`
+        ? `chore: release ${packages[0]!.name}@${releaseVersion}`
         : `chore: release ${packages.length} packages`;
     console.log(`Would commit: ${msg}`);
   } else {
@@ -247,10 +264,9 @@ for (const pkg of packages) {
     continue;
   }
 
-  const { oldVersion, newVersion } = await updatePackageVersion(
-    pkg.packageJsonPath,
-    options.bump,
-  );
+  const { oldVersion, newVersion } = targetVersion
+    ? await setPackageVersion(pkg.packageJsonPath, targetVersion)
+    : await updatePackageVersion(pkg.packageJsonPath, options.bump);
   changedFiles.push(pkg.packageJsonPath);
   console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
 

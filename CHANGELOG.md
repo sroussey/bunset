@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9
+
+### Bug Fixes
+
+- improve error handling for no commits or packages found
+
 ## 1.0.8
 
 ### Features

@@ -67,8 +67,8 @@ debug(`last tag: ${lastTag ?? "(none)"}`);
 debug(`raw commits since tag: ${rawCommits.length}`);
 
 if (rawCommits.length === 0) {
-  console.log("No commits found since last tag. Nothing to do.");
-  process.exit(0);
+  console.error("No commits found since last tag. Nothing to do.");
+  process.exit(1);
 }
 
 const parsed = rawCommits.map((c) => parseCommit(c.hash, c.message, c.body));
@@ -124,8 +124,8 @@ let packages =
 debug(`scope: ${options.scope}, packages to process: ${packages.map((p) => p.name).join(", ") || "(none)"}`);
 
 if (packages.length === 0) {
-  console.log("No changed packages found. Nothing to do.");
-  process.exit(0);
+  console.error("No changed packages found. Nothing to do.");
+  process.exit(1);
 }
 
 function getPackageGroups(
@@ -296,8 +296,8 @@ for (const pkg of packages) {
 const uniqueTags = [...new Set(tags)];
 
 if (changedFiles.length === 0) {
-  console.log("No packages were updated. Nothing to do.");
-  process.exit(0);
+  console.error("No packages were updated. Nothing to do.");
+  process.exit(1);
 }
 
 // Update lockfile after package.json versions changed

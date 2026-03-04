@@ -14,6 +14,7 @@ import {
   getCommitsSince,
   getCommitFiles,
   commitAndTag,
+  gitPush,
 } from "./git.ts";
 import { getUpdatedDependencies } from "./deps.ts";
 import {
@@ -114,11 +115,6 @@ if (shouldFilter) {
 }
 
 const globalGroups = groupCommits(parsed);
-
-if (options.sections.every((type) => globalGroups[type].length === 0)) {
-  console.log("No categorized commits found. Nothing to do.");
-  process.exit(0);
-}
 
 let packages =
   options.scope === "changed"
@@ -244,6 +240,10 @@ if (options.dryRun) {
     console.log("Will not tag (--tag not set).");
   }
 
+  if (options.push) {
+    console.log("Would push commit and tags to remote.");
+  }
+
   console.log(`\nFiles that would be modified (${filesToCommit.length}):`);
   for (const f of filesToCommit) {
     console.log(`  ${f}`);
@@ -314,6 +314,11 @@ if (options.commit) {
   console.log(`Committed: ${msg}`);
   if (uniqueTags.length > 0) {
     console.log(`Tagged: ${uniqueTags.join(", ")}`);
+  }
+
+  if (options.push) {
+    await gitPush(cwd, uniqueTags);
+    console.log("Pushed to remote.");
   }
 }
 

@@ -79,3 +79,13 @@ export async function commitAndTag(
     console.warn(`⚠ Skipped existing tags: ${skipped.join(", ")}`);
   }
 }
+
+export async function gitPush(
+  cwd: string,
+  tags: string[] = [],
+): Promise<void> {
+  await $`git -C ${cwd} push`.quiet();
+  if (tags.length > 0) {
+    await $`git -C ${cwd} push --tags`.quiet();
+  }
+}

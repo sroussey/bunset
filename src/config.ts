@@ -49,6 +49,10 @@ export async function loadConfig(
     config.tagPrefix = raw["tag-prefix"];
   }
 
+  if (typeof raw.push === "boolean") {
+    config.push = raw.push;
+  }
+
   if (typeof raw.debug === "boolean") {
     config.debug = raw.debug;
   }

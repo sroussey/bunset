@@ -23,6 +23,7 @@ export interface CliOptions {
   dryRun: boolean;
   filterByPackage: boolean;
   tagPrefix: string | null;
+  push: boolean;
   debug: boolean;
 }
 

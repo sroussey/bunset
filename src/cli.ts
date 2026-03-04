@@ -18,6 +18,7 @@ Options:
   --per-package-tags   Use package-scoped tags (pkg@version) instead of prefixed
   --tag-prefix <str>   Tag prefix (auto-detected from last tag, or "v" if no tags)
   --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
+  --push               Push commit and tags to remote after tagging
   --dry-run            Preview changes without writing files, committing, or tagging
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
   --no-filter-by-package
@@ -73,6 +74,7 @@ Config file (.bunset.toml):
     per-package-tags = false                # pkg@version tags (monorepo)
     tag-prefix = "v"                        # tag prefix (default: auto-detect)
     sections = ["feat", "fix", "perf"]      # changelog sections and order
+    push = false                            # push after tagging (default: false)
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
     filter-by-package = true                # per-package filtering (monorepo)`);
@@ -96,6 +98,7 @@ export function resolveOptions(
         tag: { type: "boolean" },
         "per-package-tags": { type: "boolean", default: false },
         sections: { type: "string" },
+        push: { type: "boolean", default: false },
         "dry-run": { type: "boolean", default: false },
         "filter-by-package": { type: "boolean", default: true },
         "tag-prefix": { type: "string" },
@@ -134,6 +137,7 @@ export function resolveOptions(
     ?? config.sections
     ?? DEFAULT_SECTIONS;
 
+  const push = values.push ? true : (config.push ?? false);
   const debug = values.debug ? true : (config.debug ?? false);
   const dryRun = debug || values["dry-run"] ? true : (config.dryRun ?? false);
 
@@ -146,11 +150,11 @@ export function resolveOptions(
     ?? null;
 
   if (bump && scope && commit !== null && tag !== null) {
-    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, debug };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, debug };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, debug },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, debug },
     bump,
     scope,
     isWs,
@@ -192,6 +196,7 @@ interface MergedDefaults {
   dryRun: boolean;
   filterByPackage: boolean;
   tagPrefix: string | null;
+  push: boolean;
   debug: boolean;
 }
 

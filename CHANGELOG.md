@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.8
+
+### Features
+
+- add --push option and proceed with empty changelog entries
+
 ## 1.0.7
 
 ### Features

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.10
+
+### Features
+
+- default --sections to all types, add "all" keyword and type aliases
+
 ## 1.0.9
 
 ### Bug Fixes

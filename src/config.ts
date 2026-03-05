@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { CliOptions, CommitType } from "./types.ts";
-import { normalizeType } from "./commits.ts";
+import { normalizeType, ALL_SECTIONS } from "./commits.ts";
 
 const CONFIG_FILE = ".bunset.toml";
 
@@ -57,7 +57,9 @@ export async function loadConfig(
     config.debug = raw.debug;
   }
 
-  if (Array.isArray(raw.sections)) {
+  if (raw.sections === "all") {
+    config.sections = [...ALL_SECTIONS];
+  } else if (Array.isArray(raw.sections)) {
     const sections: CommitType[] = [];
     for (const s of raw.sections) {
       if (typeof s === "string") {

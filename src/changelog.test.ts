@@ -56,7 +56,7 @@ describe("buildChangelogEntry", () => {
         { hash: "b", message: "", type: "test", commitScope: null, breaking: false, files: [], description: "Add tests" },
       ],
     };
-    const entry = buildChangelogEntry("1.0.0", groups);
+    const entry = buildChangelogEntry("1.0.0", groups, [], ["feature", "bugfix", "perf"]);
     expect(entry).toContain("### Features");
     expect(entry).not.toContain("### Tests");
   });

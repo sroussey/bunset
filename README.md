@@ -29,7 +29,7 @@ bunx bunset [options]
 | `--no-tag` | Tag the commit with new version (default) |
 | `--per-package-tags` | Use `pkg@1.2.3` tags instead of prefixed tags |
 | `--tag-prefix` | Tag prefix (auto-detected from last tag, or `v` if no tags) |
-| `--sections` | Comma-separated changelog sections (default: `feat,fix,perf`) |
+| `--sections` | Comma-separated changelog sections, or `all` (default: `all`) |
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
@@ -84,16 +84,16 @@ Breaking commits are collected into a **Breaking Changes** section at the top of
 - `feat`, `feature` — listed under **Features**
 - `fix`, `bug`, `bugfix` — listed under **Bug Fixes**
 - `refactor` — listed under **Refactors**
-- `perf` — listed under **Performance**
+- `perf`, `performance` — listed under **Performance**
 - `style` — listed under **Style**
 - `test` — listed under **Tests**
-- `docs` — listed under **Documentation**
+- `docs`, `documentation` — listed under **Documentation**
 - `build` — listed under **Build**
 - `ops` — listed under **Ops**
 - `chore` — listed under **Chores**
 - `ci` — listed under **CI**
 
-Only sections listed in `--sections` (or the `sections` config option) appear in the changelog. The default is `feat,fix,perf`.
+Only sections listed in `--sections` (or the `sections` config option) appear in the changelog. The default is `all` (every recognized type). Pass `--sections all` explicitly or use a comma-separated subset like `--sections feat,fix,perf`.
 
 ### Config File
 
@@ -106,7 +106,7 @@ commit = true                           # auto-commit (default: true)
 tag = true                              # create git tags (default: true)
 per-package-tags = false                # pkg@version tags (monorepo)
 tag-prefix = "v"                        # tag prefix (default: auto-detect)
-sections = ["feat", "fix", "perf"]      # changelog sections and order
+sections = "all"                          # changelog sections and order ("all" or array)
 dry-run = false                         # preview without writing
 debug = false                           # detailed reasoning (implies dry-run)
 filter-by-package = true                # per-package filtering (monorepo)
@@ -120,7 +120,7 @@ filter-by-package = true                # per-package filtering (monorepo)
 | `tag` | `boolean` | `true` | Whether to create git tags for released versions. |
 | `per-package-tags` | `boolean` | `false` | Use `pkg@1.2.3` tags instead of prefixed tags. In a monorepo, packages with no matching commits are skipped entirely. |
 | `tag-prefix` | `string` | _(auto)_ | Prefix for version tags. Auto-detected from the last git tag when not set (falls back to `"v"` if no tags exist). Set to `""` for bare version numbers, or e.g. `"project-v"` for `project-v1.2.3`. |
-| `sections` | `string[]` | `["feat", "fix", "perf"]` | Which commit types to include in the changelog and in what order. Accepts any recognized type keyword. |
+| `sections` | `string[] \| "all"` | `"all"` | Which commit types to include in the changelog and in what order. Use `"all"` for every type, or an array of recognized type keywords. |
 | `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
 | `debug` | `boolean` | `false` | Show detailed inclusion/exclusion reasoning. Implies `dry-run`. |
 | `filter-by-package` | `boolean` | `true` | In a monorepo, only include commits that touched files within each package. Disable with `false` to include all commits in every changelog. |

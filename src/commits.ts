@@ -1,6 +1,8 @@
 import type { CommitType, ParsedCommit, GroupedCommits } from "./types.ts";
 
-export const DEFAULT_SECTIONS: CommitType[] = ["feature", "bugfix", "perf"];
+export const ALL_SECTIONS: CommitType[] = ["feature", "bugfix", "refactor", "perf", "style", "test", "docs", "build", "ops", "chore", "ci"];
+
+export const DEFAULT_SECTIONS: CommitType[] = ALL_SECTIONS;
 
 const TYPE_MAP: Record<string, CommitType> = {
   feat: "feature",
@@ -10,9 +12,11 @@ const TYPE_MAP: Record<string, CommitType> = {
   bugfix: "bugfix",
   refactor: "refactor",
   perf: "perf",
+  performance: "perf",
   style: "style",
   test: "test",
   docs: "docs",
+  documentation: "docs",
   build: "build",
   ops: "ops",
   chore: "chore",

@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import type { BumpType, CliOptions, CommitType, PackageScope } from "./types.ts";
-import { normalizeType, DEFAULT_SECTIONS } from "./commits.ts";
+import { normalizeType, DEFAULT_SECTIONS, ALL_SECTIONS } from "./commits.ts";
 
 export function printHelp(): void {
   console.log(`bunset - Version bumping and changelog generation for Bun projects
@@ -17,7 +17,7 @@ Options:
   --no-tag             Do not create git tags for released versions
   --per-package-tags   Use package-scoped tags (pkg@version) instead of prefixed
   --tag-prefix <str>   Tag prefix (auto-detected from last tag, or "v" if no tags)
-  --sections <list>    Comma-separated changelog sections (default: feat,fix,perf)
+  --sections <list>    Comma-separated changelog sections, or "all" (default: all)
   --push               Push commit and tags to remote after tagging
   --dry-run            Preview changes without writing files, committing, or tagging
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
@@ -51,16 +51,16 @@ Commit format:
     feat, feature          → Features
     fix, bug, bugfix       → Bug Fixes
     refactor               → Refactors
-    perf                   → Performance
+    perf, performance      → Performance
     style                  → Style
     test                   → Tests
-    docs                   → Documentation
+    docs, documentation    → Documentation
     build                  → Build
     ops                    → Ops
     chore                  → Chores
     ci                     → CI
   Only sections listed in --sections (or config) are included in the changelog.
-  Default sections: feat, fix, perf.
+  Default sections: all (feat,fix,refactor,perf,style,test,docs,build,ops,chore,ci).
 
 Config file (.bunset.toml):
   Place a .bunset.toml in your project root to set persistent defaults.
@@ -73,7 +73,7 @@ Config file (.bunset.toml):
     tag = true                              # create git tags (default: true)
     per-package-tags = false                # pkg@version tags (monorepo)
     tag-prefix = "v"                        # tag prefix (default: auto-detect)
-    sections = ["feat", "fix", "perf"]      # changelog sections and order
+    sections = "all"                          # changelog sections and order ("all" or array)
     push = false                            # push after tagging (default: false)
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
@@ -180,6 +180,7 @@ function resolveScope(
 
 function parseSections(raw: string | undefined): CommitType[] | null {
   if (!raw) return null;
+  if (raw.trim().toLowerCase() === "all") return [...ALL_SECTIONS];
   const result: CommitType[] = [];
   for (const part of raw.split(",")) {
     const type = normalizeType(part.trim());

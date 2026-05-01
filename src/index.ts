@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun";
+import { join } from "node:path";
 import { resolveOptions } from "./cli.ts";
 import { loadConfig } from "./config.ts";
 import {
@@ -142,7 +143,7 @@ function packageHasChanges(groups: GroupedCommits): boolean {
 }
 
 // When scope is "all" in a workspace, also update the workspace root's package.json
-const rootPackageJsonPath = `${cwd}/package.json`;
+const rootPackageJsonPath = join(cwd, "package.json");
 const updateRoot =
   isWs &&
   options.scope === "all" &&
@@ -174,6 +175,7 @@ if (options.dryRun) {
 
   const tags: string[] = [];
   const filesToCommit: string[] = [];
+  let anyPackageUpdated = false;
 
   for (const pkg of packages) {
     const groups = getPackageGroups(pkg, parsed);
@@ -206,6 +208,7 @@ if (options.dryRun) {
     const newVersion = targetVersion ?? bumpVersion(oldVersion, options.bump);
     console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
     filesToCommit.push(pkg.packageJsonPath, `${pkg.path}/CHANGELOG.md`);
+    anyPackageUpdated = true;
 
     const updatedDeps = await getUpdatedDependencies(
       cwd,
@@ -231,7 +234,7 @@ if (options.dryRun) {
     }
   }
 
-  if (updateRoot && rootCurrentVersion) {
+  if (updateRoot && rootCurrentVersion && anyPackageUpdated) {
     const newRootVersion = targetVersion ?? bumpVersion(rootCurrentVersion, options.bump);
     console.log(`(workspace root): ${rootCurrentVersion} → ${newRootVersion}`);
     filesToCommit.push(rootPackageJsonPath);
@@ -271,6 +274,7 @@ if (options.dryRun) {
 
 const tags: string[] = [];
 const changedFiles: string[] = [];
+let anyPackageUpdated = false;
 
 for (const pkg of packages) {
   const groups = getPackageGroups(pkg, parsed);
@@ -287,6 +291,7 @@ for (const pkg of packages) {
     : await updatePackageVersion(pkg.packageJsonPath, options.bump);
   changedFiles.push(pkg.packageJsonPath);
   console.log(`${pkg.name}: ${oldVersion} → ${newVersion}`);
+  anyPackageUpdated = true;
 
   const updatedDeps = await getUpdatedDependencies(
     cwd,
@@ -311,7 +316,7 @@ for (const pkg of packages) {
   }
 }
 
-if (updateRoot) {
+if (updateRoot && anyPackageUpdated) {
   const { oldVersion, newVersion } = targetVersion
     ? await setPackageVersion(rootPackageJsonPath, targetVersion)
     : await updatePackageVersion(rootPackageJsonPath, options.bump);

@@ -9,7 +9,7 @@ import {
   groupCommits,
   filterCommitsForPackage,
 } from "./commits.ts";
-import { buildChangelogEntry, writeChangelog } from "./changelog.ts";
+import { buildChangelogEntry, buildReleaseNotes, writeChangelog } from "./changelog.ts";
 import {
   getLastTag,
   getCommitsSince,
@@ -80,6 +80,11 @@ if (options.release && !options.push) {
 
 if (options.release && !options.tag) {
   console.error("--release requires tagging to be enabled.");
+  process.exit(1);
+}
+
+if (options.release && !options.commit) {
+  console.error("--release requires --commit (tag/push/release run inside the commit step).");
   process.exit(1);
 }
 
@@ -179,16 +184,6 @@ if (!options.perPackageTags && (packages.length > 1 || updateRoot)) {
   }, "0.0.0");
   targetVersion = bumpVersion(maxVersion, options.bump);
   debug(`shared tag mode: max version = ${maxVersion}, target version = ${targetVersion}`);
-}
-
-function buildReleaseNotes(
-  entries: { pkgName: string; entry: string }[],
-): string {
-  const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
-  if (entries.length === 1) return stripVersion(entries[0]!.entry);
-  return entries
-    .map(({ pkgName, entry }) => `## ${pkgName}\n\n${stripVersion(entry)}`)
-    .join("\n\n");
 }
 
 if (options.dryRun) {

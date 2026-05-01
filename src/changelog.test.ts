@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { buildChangelogEntry, writeChangelog } from "./changelog.ts";
+import { buildChangelogEntry, buildReleaseNotes, writeChangelog } from "./changelog.ts";
 import { COMMIT_TYPES } from "./commits.ts";
 import type { GroupedCommits } from "./types.ts";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -200,5 +200,36 @@ describe("writeChangelog", () => {
     const idx1 = content.indexOf("## 1.0.0");
     const idx2 = content.indexOf("## 0.1.0");
     expect(idx1).toBeLessThan(idx2);
+  });
+});
+
+describe("buildReleaseNotes", () => {
+  test("returns empty string for no entries", () => {
+    expect(buildReleaseNotes([])).toBe("");
+  });
+
+  test("strips the version heading from a single entry", () => {
+    const entry = "## 1.2.3\n\n### Features\n\n- Add login\n";
+    expect(buildReleaseNotes([{ pkgName: "pkg-a", entry }])).toBe(
+      "### Features\n\n- Add login\n",
+    );
+  });
+
+  test("combines multiple entries under per-package headings", () => {
+    const result = buildReleaseNotes([
+      { pkgName: "pkg-a", entry: "## 1.2.3\n\n### Features\n\n- A\n" },
+      { pkgName: "pkg-b", entry: "## 1.2.3\n\n### Bug Fixes\n\n- B\n" },
+    ]);
+    expect(result).toContain("## pkg-a");
+    expect(result).toContain("## pkg-b");
+    expect(result).toContain("### Features");
+    expect(result).toContain("### Bug Fixes");
+    expect(result).not.toMatch(/^## 1\.2\.3/m);
+    expect(result.indexOf("## pkg-a")).toBeLessThan(result.indexOf("## pkg-b"));
+  });
+
+  test("handles entries without a leading version heading", () => {
+    const entry = "### Features\n\n- Plain entry\n";
+    expect(buildReleaseNotes([{ pkgName: "pkg-a", entry }])).toBe(entry);
   });
 });

@@ -95,7 +95,14 @@ export async function createGithubRelease(
   tag: string,
   notes: string,
 ): Promise<void> {
-  await $`gh release create ${tag} --title ${tag} --notes ${notes}`
-    .cwd(cwd)
-    .quiet();
+  const proc = Bun.spawn(
+    ["gh", "release", "create", tag, "--title", tag, "--notes-file", "-"],
+    { cwd, stdin: "pipe", stdout: "inherit", stderr: "inherit" },
+  );
+  proc.stdin.write(notes);
+  await proc.stdin.end();
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    throw new Error(`gh release create exited with code ${exitCode}`);
+  }
 }

@@ -84,6 +84,17 @@ export function buildChangelogEntry(
   return lines.join("\n");
 }
 
+export function buildReleaseNotes(
+  entries: { pkgName: string; entry: string }[],
+): string {
+  const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
+  if (entries.length === 0) return "";
+  if (entries.length === 1) return stripVersion(entries[0]!.entry);
+  return entries
+    .map(({ pkgName, entry }) => `## ${pkgName}\n\n${stripVersion(entry)}`)
+    .join("\n\n");
+}
+
 export async function writeChangelog(
   dir: string,
   entry: string,

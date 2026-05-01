@@ -141,11 +141,23 @@ function packageHasChanges(groups: GroupedCommits): boolean {
   return options.sections.some((type) => groups[type].length > 0);
 }
 
-// When using shared tags, sync all packages to the same target version
+// When scope is "all" in a workspace, also update the workspace root's package.json
+const rootPackageJsonPath = `${cwd}/package.json`;
+const updateRoot =
+  isWs &&
+  options.scope === "all" &&
+  !packages.some((p) => p.packageJsonPath === rootPackageJsonPath);
+const rootCurrentVersion = updateRoot
+  ? ((await Bun.file(rootPackageJsonPath).json()).version ?? "0.0.0")
+  : null;
+debug(`update root package.json: ${updateRoot}${updateRoot ? ` (current: ${rootCurrentVersion})` : ""}`);
+
+// When using shared tags, sync all packages (and root, if updating) to the same target version
 let targetVersion: string | null = null;
-if (!options.perPackageTags && packages.length > 1) {
-  const maxVersion = packages.reduce((max, pkg) => {
-    const v = pkg.version ?? "0.0.0";
+if (!options.perPackageTags && (packages.length > 1 || updateRoot)) {
+  const candidateVersions = packages.map((p) => p.version ?? "0.0.0");
+  if (updateRoot && rootCurrentVersion) candidateVersions.push(rootCurrentVersion);
+  const maxVersion = candidateVersions.reduce((max, v) => {
     const [mj1, mn1, p1] = parseSemver(max);
     const [mj2, mn2, p2] = parseSemver(v);
     if (mj2 > mj1) return v;
@@ -217,6 +229,12 @@ if (options.dryRun) {
         tags.push(`${tagPrefix}${newVersion}`);
       }
     }
+  }
+
+  if (updateRoot && rootCurrentVersion) {
+    const newRootVersion = targetVersion ?? bumpVersion(rootCurrentVersion, options.bump);
+    console.log(`(workspace root): ${rootCurrentVersion} → ${newRootVersion}`);
+    filesToCommit.push(rootPackageJsonPath);
   }
 
   const uniqueTags = [...new Set(tags)];
@@ -291,6 +309,14 @@ for (const pkg of packages) {
       tags.push(`${tagPrefix}${newVersion}`);
     }
   }
+}
+
+if (updateRoot) {
+  const { oldVersion, newVersion } = targetVersion
+    ? await setPackageVersion(rootPackageJsonPath, targetVersion)
+    : await updatePackageVersion(rootPackageJsonPath, options.bump);
+  changedFiles.push(rootPackageJsonPath);
+  console.log(`(workspace root): ${oldVersion} → ${newVersion}`);
 }
 
 const uniqueTags = [...new Set(tags)];

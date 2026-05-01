@@ -7,10 +7,10 @@
     "bunset": "src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "1.3.13"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "bun": "^1.3"

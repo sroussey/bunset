@@ -2,3 +2,4 @@ commit=true
 tag=true
 bump="patch"
 push=true
+release=true

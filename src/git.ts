@@ -89,3 +89,13 @@ export async function gitPush(
     await $`git -C ${cwd} push --tags`.quiet();
   }
 }
+
+export async function createGithubRelease(
+  cwd: string,
+  tag: string,
+  notes: string,
+): Promise<void> {
+  await $`gh release create ${tag} --title ${tag} --notes ${notes}`
+    .cwd(cwd)
+    .quiet();
+}

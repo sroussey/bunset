@@ -53,6 +53,10 @@ export async function loadConfig(
     config.push = raw.push;
   }
 
+  if (typeof raw.release === "boolean") {
+    config.release = raw.release;
+  }
+
   if (typeof raw.debug === "boolean") {
     config.debug = raw.debug;
   }

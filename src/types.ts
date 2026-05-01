@@ -24,6 +24,7 @@ export interface CliOptions {
   filterByPackage: boolean;
   tagPrefix: string | null;
   push: boolean;
+  release: boolean;
   debug: boolean;
 }
 

@@ -33,6 +33,8 @@ bunx bunset [options]
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
+| `--push` | Push the release commit and tags to the remote |
+| `--release` | Create a GitHub release per tag with the changelog entry as the release notes (requires `--push` and the `gh` CLI) |
 
 When bump type or scope flags are omitted, interactive prompts will ask.
 
@@ -107,6 +109,8 @@ tag = true                              # create git tags (default: true)
 per-package-tags = false                # pkg@version tags (monorepo)
 tag-prefix = "v"                        # tag prefix (default: auto-detect)
 sections = "all"                          # changelog sections and order ("all" or array)
+push = false                            # push after tagging (default: false)
+release = false                         # create GitHub release per tag (default: false)
 dry-run = false                         # preview without writing
 debug = false                           # detailed reasoning (implies dry-run)
 filter-by-package = true                # per-package filtering (monorepo)
@@ -124,6 +128,8 @@ filter-by-package = true                # per-package filtering (monorepo)
 | `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
 | `debug` | `boolean` | `false` | Show detailed inclusion/exclusion reasoning. Implies `dry-run`. |
 | `filter-by-package` | `boolean` | `true` | In a monorepo, only include commits that touched files within each package. Disable with `false` to include all commits in every changelog. |
+| `push` | `boolean` | `false` | Push the release commit and tags to the remote after tagging. |
+| `release` | `boolean` | `false` | Create a GitHub release for each tag with the changelog entry as the release notes. Requires `push = true` and the [`gh` CLI](https://cli.github.com/). When multiple packages share a tag, their entries are combined under per-package headings. |
 
 ## Testing
 

@@ -19,6 +19,8 @@ Options:
   --tag-prefix <str>   Tag prefix (auto-detected from last tag, or "v" if no tags)
   --sections <list>    Comma-separated changelog sections, or "all" (default: all)
   --push               Push commit and tags to remote after tagging
+  --release            Create a GitHub release per tag with the changelog entry
+                       as the release notes (requires --push and the gh CLI)
   --dry-run            Preview changes without writing files, committing, or tagging
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
   --no-filter-by-package
@@ -75,6 +77,7 @@ Config file (.bunset.toml):
     tag-prefix = "v"                        # tag prefix (default: auto-detect)
     sections = "all"                          # changelog sections and order ("all" or array)
     push = false                            # push after tagging (default: false)
+    release = false                         # create GitHub release (default: false)
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
     filter-by-package = true                # per-package filtering (monorepo)`);
@@ -99,6 +102,7 @@ export function resolveOptions(
         "per-package-tags": { type: "boolean", default: false },
         sections: { type: "string" },
         push: { type: "boolean", default: false },
+        release: { type: "boolean", default: false },
         "dry-run": { type: "boolean", default: false },
         "filter-by-package": { type: "boolean", default: true },
         "tag-prefix": { type: "string" },
@@ -138,6 +142,7 @@ export function resolveOptions(
     ?? DEFAULT_SECTIONS;
 
   const push = values.push ? true : (config.push ?? false);
+  const release = values.release ? true : (config.release ?? false);
   const debug = values.debug ? true : (config.debug ?? false);
   const dryRun = debug || values["dry-run"] ? true : (config.dryRun ?? false);
 
@@ -150,11 +155,11 @@ export function resolveOptions(
     ?? null;
 
   if (bump && scope && commit !== null && tag !== null) {
-    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, debug };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, debug },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug },
     bump,
     scope,
     isWs,
@@ -198,6 +203,7 @@ interface MergedDefaults {
   filterByPackage: boolean;
   tagPrefix: string | null;
   push: boolean;
+  release: boolean;
   debug: boolean;
 }
 

@@ -16,6 +16,7 @@ import {
   getCommitFiles,
   commitAndTag,
   gitPush,
+  createGithubRelease,
 } from "./git.ts";
 import { getUpdatedDependencies } from "./deps.ts";
 import {
@@ -69,6 +70,16 @@ debug(`raw commits since tag: ${rawCommits.length}`);
 
 if (rawCommits.length === 0) {
   console.error("No commits found since last tag. Nothing to do.");
+  process.exit(1);
+}
+
+if (options.release && !options.push) {
+  console.error("--release requires --push (the tag must be on the remote).");
+  process.exit(1);
+}
+
+if (options.release && !options.tag) {
+  console.error("--release requires tagging to be enabled.");
   process.exit(1);
 }
 
@@ -170,11 +181,22 @@ if (!options.perPackageTags && (packages.length > 1 || updateRoot)) {
   debug(`shared tag mode: max version = ${maxVersion}, target version = ${targetVersion}`);
 }
 
+function buildReleaseNotes(
+  entries: { pkgName: string; entry: string }[],
+): string {
+  const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
+  if (entries.length === 1) return stripVersion(entries[0]!.entry);
+  return entries
+    .map(({ pkgName, entry }) => `## ${pkgName}\n\n${stripVersion(entry)}`)
+    .join("\n\n");
+}
+
 if (options.dryRun) {
   if (!dbg) console.log("--- Dry Run ---\n");
 
   const tags: string[] = [];
   const filesToCommit: string[] = [];
+  const tagEntries = new Map<string, { pkgName: string; entry: string }[]>();
   let anyPackageUpdated = false;
 
   for (const pkg of packages) {
@@ -226,11 +248,13 @@ if (options.dryRun) {
     console.log(entry);
 
     if (options.tag) {
-      if (options.perPackageTags) {
-        tags.push(`${pkg.name}@${newVersion}`);
-      } else {
-        tags.push(`${tagPrefix}${newVersion}`);
-      }
+      const tag = options.perPackageTags
+        ? `${pkg.name}@${newVersion}`
+        : `${tagPrefix}${newVersion}`;
+      tags.push(tag);
+      const list = tagEntries.get(tag) ?? [];
+      list.push({ pkgName: pkg.name, entry });
+      tagEntries.set(tag, list);
     }
   }
 
@@ -265,6 +289,14 @@ if (options.dryRun) {
     console.log("Would push commit and tags to remote.");
   }
 
+  if (options.release) {
+    for (const tag of uniqueTags) {
+      const entries = tagEntries.get(tag) ?? [];
+      console.log(`\nWould create GitHub release ${tag} with notes:`);
+      console.log(buildReleaseNotes(entries));
+    }
+  }
+
   console.log(`\nFiles that would be modified (${filesToCommit.length}):`);
   for (const f of filesToCommit) {
     console.log(`  ${f}`);
@@ -274,6 +306,7 @@ if (options.dryRun) {
 
 const tags: string[] = [];
 const changedFiles: string[] = [];
+const tagEntries = new Map<string, { pkgName: string; entry: string }[]>();
 let anyPackageUpdated = false;
 
 for (const pkg of packages) {
@@ -308,11 +341,13 @@ for (const pkg of packages) {
   changedFiles.push(`${pkg.path}/CHANGELOG.md`);
 
   if (options.tag) {
-    if (options.perPackageTags) {
-      tags.push(`${pkg.name}@${newVersion}`);
-    } else {
-      tags.push(`${tagPrefix}${newVersion}`);
-    }
+    const tag = options.perPackageTags
+      ? `${pkg.name}@${newVersion}`
+      : `${tagPrefix}${newVersion}`;
+    tags.push(tag);
+    const list = tagEntries.get(tag) ?? [];
+    list.push({ pkgName: pkg.name, entry });
+    tagEntries.set(tag, list);
   }
 }
 
@@ -350,6 +385,21 @@ if (options.commit) {
   if (options.push) {
     await gitPush(cwd, uniqueTags);
     console.log("Pushed to remote.");
+  }
+
+  if (options.release) {
+    for (const tag of uniqueTags) {
+      const entries = tagEntries.get(tag) ?? [];
+      const notes = buildReleaseNotes(entries);
+      try {
+        await createGithubRelease(cwd, tag, notes);
+        console.log(`Created GitHub release: ${tag}`);
+      } catch (err) {
+        console.warn(
+          `⚠ Failed to create GitHub release ${tag}: ${(err as Error).message}`,
+        );
+      }
+    }
   }
 }
 

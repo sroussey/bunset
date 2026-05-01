@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.11
+
+### Features
+
+- add --release option to create GitHub releases with changelog notes (#2)
+- update workspace root package.json version when scope is all (#1)
+
 ## 1.0.10
 
 ### Features

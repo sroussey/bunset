@@ -232,4 +232,31 @@ describe("buildReleaseNotes", () => {
     const entry = "### Features\n\n- Plain entry\n";
     expect(buildReleaseNotes([{ pkgName: "pkg-a", entry }])).toBe(entry);
   });
+
+  test("omits packages with empty entries", () => {
+    const result = buildReleaseNotes([
+      { pkgName: "pkg-a", entry: "## 1.2.3\n\n### Features\n\n- A\n" },
+      { pkgName: "pkg-b", entry: "## 1.2.3\n" },
+      { pkgName: "pkg-c", entry: "## 1.2.3\n\n### Bug Fixes\n\n- C\n" },
+    ]);
+    expect(result).toContain("## pkg-a");
+    expect(result).not.toContain("## pkg-b");
+    expect(result).toContain("## pkg-c");
+  });
+
+  test("strips version heading when only one package has content", () => {
+    const result = buildReleaseNotes([
+      { pkgName: "pkg-a", entry: "## 1.2.3\n\n### Features\n\n- A\n" },
+      { pkgName: "pkg-b", entry: "## 1.2.3\n" },
+    ]);
+    expect(result).toBe("### Features\n\n- A\n");
+  });
+
+  test("returns empty string when all entries are empty", () => {
+    const result = buildReleaseNotes([
+      { pkgName: "pkg-a", entry: "## 1.2.3\n" },
+      { pkgName: "pkg-b", entry: "## 1.2.3\n\n" },
+    ]);
+    expect(result).toBe("");
+  });
 });

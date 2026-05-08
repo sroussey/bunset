@@ -88,9 +88,10 @@ export function buildReleaseNotes(
   entries: { pkgName: string; entry: string }[],
 ): string {
   const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
-  if (entries.length === 0) return "";
-  if (entries.length === 1) return stripVersion(entries[0]!.entry);
-  return entries
+  const nonEmpty = entries.filter(({ entry }) => stripVersion(entry).trim() !== "");
+  if (nonEmpty.length === 0) return "";
+  if (nonEmpty.length === 1) return stripVersion(nonEmpty[0]!.entry);
+  return nonEmpty
     .map(({ pkgName, entry }) => `## ${pkgName}\n\n${stripVersion(entry)}`)
     .join("\n\n");
 }

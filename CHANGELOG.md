@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.12
+
+### Bug Fixes
+
+- no gh in the dev container
+- omit packages with empty entries from release notes (#3)
+
+### Chores
+
+- update dependencies and configuration for bunset
+
+### Updated Dependencies
+
+- `@types/bun`: 1.3.13
+
 ## 1.0.11
 
 ### Features

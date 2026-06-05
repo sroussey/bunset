@@ -268,8 +268,10 @@ if (options.dryRun) {
     const msg =
       packages.length === 1
         ? `chore: release ${packages[0]!.name}@${releaseVersion}`
-        : `chore: release ${packages.length} packages`;
-    console.log(`Would commit: ${msg}`);
+        : `chore: release ${releaseVersion} for ${packages.length} packages`;
+
+    const notes = buildReleaseNotes(tagEntries.values() ?? []);
+    console.log(`Would commit: ${msg}\n\n${notes}`);
   } else {
     console.log("Will not commit (--commit not set).");
   }
@@ -367,12 +369,14 @@ changedFiles.push(`${cwd}/bun.lock`);
 debug("updated bun.lock");
 
 if (options.commit) {
+  const releaseVersion = (await Bun.file(packages[0]!.packageJsonPath).json()).version;
   const msg =
     packages.length === 1
-      ? `chore: release ${packages[0]!.name}@${(await Bun.file(packages[0]!.packageJsonPath).json()).version}`
-      : `chore: release ${packages.length} packages`;
-  await commitAndTag(cwd, msg, options.tag ? uniqueTags : [], changedFiles);
-  console.log(`Committed: ${msg}`);
+      ? `chore: release ${packages[0]!.name}@${releaseVersion}`
+      : `chore: release ${releaseVersion} for ${packages.length} packages`;
+  const notes = buildReleaseNotes(tagEntries.values() ?? []);
+  await commitAndTag(cwd, msg + "\n\n" + notes, options.tag ? uniqueTags : [], changedFiles);
+  console.log(`Committed: ${msg}\n\n${notes}`);
   if (uniqueTags.length > 0) {
     console.log(`Tagged: ${uniqueTags.join(", ")}`);
   }

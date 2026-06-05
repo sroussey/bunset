@@ -270,7 +270,7 @@ if (options.dryRun) {
         ? `chore: release ${packages[0]!.name}@${releaseVersion}`
         : `chore: release ${releaseVersion} for ${packages.length} packages`;
 
-    const notes = buildReleaseNotes(tagEntries.values() ?? []);
+    const notes = buildReleaseNotes([...tagEntries.values()].flat());
     console.log(`Would commit: ${msg}\n\n${notes}`);
   } else {
     console.log("Will not commit (--commit not set).");
@@ -374,7 +374,7 @@ if (options.commit) {
     packages.length === 1
       ? `chore: release ${packages[0]!.name}@${releaseVersion}`
       : `chore: release ${releaseVersion} for ${packages.length} packages`;
-  const notes = buildReleaseNotes(tagEntries.values() ?? []);
+  const notes = buildReleaseNotes([...tagEntries.values()].flat());
   await commitAndTag(cwd, msg + "\n\n" + notes, options.tag ? uniqueTags : [], changedFiles);
   console.log(`Committed: ${msg}\n\n${notes}`);
   if (uniqueTags.length > 0) {

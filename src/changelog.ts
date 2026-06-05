@@ -85,10 +85,10 @@ export function buildChangelogEntry(
 }
 
 export function buildReleaseNotes(
-  entries: { pkgName: string; entry: string }[],
+  entries: Iterable<{ pkgName: string; entry: string }>,
 ): string {
   const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
-  const nonEmpty = entries.filter(({ entry }) => stripVersion(entry).trim() !== "");
+  const nonEmpty = [...entries].filter(({ entry }) => stripVersion(entry).trim() !== "");
   if (nonEmpty.length === 0) return "";
   if (nonEmpty.length === 1) return stripVersion(nonEmpty[0]!.entry);
   return nonEmpty

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.13
+
+### Bug Fixes
+
+- show version and notes in commit message
+
+### Refactors
+
+- update buildReleaseNotes to accept iterable entries
+
+### Chores
+
+- update deps
+
+### Updated Dependencies
+
+- `@types/bun`: 1.3.14
+
 ## 1.0.12
 
 ### Bug Fixes

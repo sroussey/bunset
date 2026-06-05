@@ -1,6 +1,6 @@
 {
   "name": "bunset",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "module": "src/index.ts",
   "type": "module",
   "bin": {

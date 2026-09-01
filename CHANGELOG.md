@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.15
+
+### Features
+
+- refuse a patch release when commits are breaking (#5)
+
 ## 1.0.14
 
 ### Chores

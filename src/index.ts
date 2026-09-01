@@ -24,7 +24,15 @@ import {
   getAllPackages,
   getChangedPackages,
 } from "./workspace.ts";
-import { bumpVersion, parseSemver, updatePackageVersion, setPackageVersion } from "./version.ts";
+import {
+  bumpVersion,
+  parseSemver,
+  updatePackageVersion,
+  setPackageVersion,
+  assertBumpAllowsBreakingChanges,
+  findBreakingCommits,
+  BreakingChangeBumpError,
+} from "./version.ts";
 import type { ParsedCommit, GroupedCommits } from "./types.ts";
 
 const cwd = process.cwd();
@@ -102,12 +110,20 @@ if (dbg) {
   console.log("");
 }
 
-// Warn if breaking changes detected with non-major bump
-const hasBreaking = parsed.some((c) => c.breaking);
-if (hasBreaking && options.bump !== "major") {
+// A breaking change refuses a patch release outright; a minor one only warns
+try {
+  assertBumpAllowsBreakingChanges(parsed, options.bump);
+} catch (err) {
+  if (!(err instanceof BreakingChangeBumpError)) throw err;
+  console.error(err.message);
+  process.exit(1);
+}
+
+const breakingCommits = findBreakingCommits(parsed);
+if (breakingCommits.length > 0 && options.bump !== "major") {
   console.log(`\u26a0 Breaking changes detected but bump is "${options.bump}" (not "major").`);
   if (dbg) {
-    for (const c of parsed.filter((c) => c.breaking)) {
+    for (const c of breakingCommits) {
       debug(`  breaking: ${c.hash.slice(0, 7)} ${c.message}`);
     }
   }

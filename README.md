@@ -79,7 +79,9 @@ feat(auth)!: Change token format
 
 A `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer in the commit body is also detected.
 
-Breaking commits are collected into a **Breaking Changes** section at the top of each changelog entry, regardless of which `--sections` are configured. If breaking changes are detected and the bump type is not `major`, a warning is printed.
+Breaking commits are collected into a **Breaking Changes** section at the top of each changelog entry, regardless of which `--sections` are configured.
+
+A breaking change rules out a patch release: semver reserves patch for backwards-compatible fixes, so publishing one would hide the break from every consumer's version range. If any breaking commit is found and the bump is `patch`, bunset names the offending commits and exits without writing anything — including under `--dry-run`. A `minor` bump prints a warning instead.
 
 #### Recognized Type Keywords
 

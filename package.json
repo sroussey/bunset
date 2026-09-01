@@ -7,7 +7,7 @@
     "bunset": "src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "1.3.14"
+    "@types/bun": "1.4.0"
   },
   "peerDependencies": {
     "typescript": ">=5.9.3"

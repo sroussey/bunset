@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.14
+
+### Chores
+
+- ts version 5.9.3 or above
+- widen typescript peer range to >=5.9.3 (#4)
+
+### Updated Dependencies
+
+- `@types/bun`: ^1.4.0
+
 ## 1.0.13
 
 ### Bug Fixes

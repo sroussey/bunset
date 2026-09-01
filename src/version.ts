@@ -1,4 +1,47 @@
-import type { BumpType } from "./types.ts";
+import type { BumpType, ParsedCommit } from "./types.ts";
+
+/**
+ * Thrown when a release would ship breaking changes under a bump that hides
+ * them. Carries the offending commits so the caller can name them.
+ */
+export class BreakingChangeBumpError extends Error {
+  readonly bump: BumpType;
+  readonly commits: readonly ParsedCommit[];
+
+  constructor(bump: BumpType, commits: readonly ParsedCommit[]) {
+    const list = commits
+      .map((c) => `  ${c.hash.slice(0, 7)} ${c.message.split("\n")[0]}`)
+      .join("\n");
+    super(
+      `Breaking changes found, so a "${bump}" release is not allowed:\n${list}\n` +
+        `Re-run with --minor or --major (or set bump in .bunset.toml).`,
+    );
+    this.name = "BreakingChangeBumpError";
+    this.bump = bump;
+    this.commits = commits;
+  }
+}
+
+export function findBreakingCommits(
+  commits: readonly ParsedCommit[],
+): ParsedCommit[] {
+  return commits.filter((c) => c.breaking);
+}
+
+/**
+ * A `!` marker (or `BREAKING CHANGE:` footer) rules out a patch release —
+ * semver reserves patch for backwards-compatible fixes, so publishing one
+ * would hide the break from every consumer's version range.
+ */
+export function assertBumpAllowsBreakingChanges(
+  commits: readonly ParsedCommit[],
+  bump: BumpType,
+): void {
+  if (bump !== "patch") return;
+  const breaking = findBreakingCommits(commits);
+  if (breaking.length === 0) return;
+  throw new BreakingChangeBumpError(bump, breaking);
+}
 
 export function parseSemver(version: string): [number, number, number] {
   const clean = version.startsWith("v") ? version.slice(1) : version;

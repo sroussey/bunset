@@ -47,7 +47,8 @@ Commit format:
       [feat!] Remove old API
     Or include a "BREAKING CHANGE:" footer in the commit body.
     Breaking commits are collected into a "Breaking Changes" section at the
-    top of the changelog entry. A warning is printed if the bump is not major.
+    top of the changelog entry. A breaking change makes --patch an error;
+    a warning is printed if the bump is minor rather than major.
 
   Recognized type keywords:
     feat, feature          → Features

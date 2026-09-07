@@ -42,6 +42,27 @@ export async function getCommitsSince(
   return commits;
 }
 
+/**
+ * A package manifest as it stood at `ref`, or null when the file did not
+ * exist there (a package added since the last release has nothing to diff).
+ */
+export async function readPackageJsonAtRef(
+  cwd: string,
+  packageJsonPath: string,
+  ref: string | null,
+): Promise<Record<string, unknown> | null> {
+  if (!ref) return null;
+  const relativePath = packageJsonPath.startsWith(cwd)
+    ? packageJsonPath.slice(cwd.length + 1)
+    : packageJsonPath;
+  try {
+    const result = await $`git -C ${cwd} show ${ref}:${relativePath}`.quiet();
+    return JSON.parse(result.text()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCommitFiles(
   cwd: string,
   hash: string,

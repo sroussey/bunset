@@ -57,6 +57,10 @@ export async function loadConfig(
     config.surfaceCheck = raw["surface-check"];
   }
 
+  if (typeof raw.lockstep === "boolean") {
+    config.lockstep = raw.lockstep;
+  }
+
   if (typeof raw["tag-prefix"] === "string") {
     config.tagPrefix = raw["tag-prefix"];
   }

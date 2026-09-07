@@ -29,6 +29,7 @@ export interface CliOptions {
   release: boolean;
   debug: boolean;
   includePrivate: boolean;
+  lockstep: boolean;
   skipUnchanged: boolean;
   surfaceCheck: boolean;
 }

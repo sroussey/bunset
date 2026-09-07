@@ -27,6 +27,9 @@ Options:
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
   --no-filter-by-package
                        Include all commits in every package changelog (monorepo)
+  --lockstep           Keep every workspace package on one version. Refuses any
+                       option that would leave a package behind, and versions
+                       private packages so none of them falls out of the line.
   --include-private    Version packages marked "private": true (skipped by default)
   --skip-unchanged     Skip packages with no matching commits even under shared
                        tags (already implied by --per-package-tags)
@@ -90,6 +93,7 @@ Config file (.bunset.toml):
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
     filter-by-package = true                # per-package filtering (monorepo)
+    lockstep = false                        # keep every package on one version
     include-private = false                 # version "private": true packages
     skip-unchanged = false                  # skip packages with no commits
     surface-check = true                    # diff each manifest against the last tag`);
@@ -121,6 +125,8 @@ export function resolveOptions(
         "dry-run": { type: "boolean", default: false },
         "filter-by-package": { type: "boolean" },
         "no-filter-by-package": { type: "boolean" },
+        lockstep: { type: "boolean" },
+        "no-lockstep": { type: "boolean" },
         "include-private": { type: "boolean", default: false },
         "skip-unchanged": { type: "boolean", default: false },
         "surface-check": { type: "boolean" },
@@ -175,17 +181,18 @@ export function resolveOptions(
     ? true
     : (config.skipUnchanged ?? false);
   const surfaceCheck = flag(values, "surface-check") ?? config.surfaceCheck ?? true;
+  const lockstep = flag(values, "lockstep") ?? config.lockstep ?? false;
 
   const tagPrefix = values["tag-prefix"] as string | undefined
     ?? config.tagPrefix
     ?? null;
 
   if (bump && scope && commit !== null && tag !== null) {
-    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck, lockstep };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck, lockstep },
     bump,
     scope,
     isWs,
@@ -246,6 +253,7 @@ interface MergedDefaults {
   includePrivate: boolean;
   skipUnchanged: boolean;
   surfaceCheck: boolean;
+  lockstep: boolean;
 }
 
 async function promptForMissing(
@@ -254,6 +262,10 @@ async function promptForMissing(
   scope: PackageScope | null,
   isWs: boolean,
 ): Promise<CliOptions> {
+  if (!scope && isWs && merged.lockstep) {
+    scope = "all";
+  }
+
   if (!scope && isWs) {
     process.stdout.write(
       "Update packages: (1) ALL packages  (2) Only CHANGED packages [default: 2]: ",

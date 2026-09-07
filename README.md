@@ -34,6 +34,7 @@ bunx bunset [options]
 | `--dry-run` | Preview changes without writing files, committing, or tagging |
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
+| `--lockstep` | Keep every workspace package on one version, and refuse anything that would break that |
 | `--include-private` | Version private packages alongside published ones (skipped by default) |
 | `--skip-unchanged` | Skip packages with no matching commits, even under shared tags |
 | `--no-surface-check` | Do not diff each `package.json` against the last tag |
@@ -104,6 +105,26 @@ When `--per-package-tags` is set, packages with no matching commits are skipped 
 Packages marked `"private": true` are skipped: they are never published, so a version number on one records a release no consumer could install. This applies only where something else in the repo *is* published — a workspace whose packages are all private is a private product, and its version numbers are the whole point, so nothing is skipped there. Pass `--include-private` to version private packages alongside published ones.
 
 Use `--no-filter-by-package` to disable this and include all commits in every package's changelog.
+
+### Lockstep
+
+In a monorepo on shared tags every package moves to one version, but that is an
+emergent property of the right flags rather than a guarantee: `--changed`,
+`--skip-unchanged`, and a skipped private package each leave some package behind
+at its old number, silently.
+
+`--lockstep` (or `lockstep = true`) makes it an invariant. It refuses any option
+that would break the line — naming which one and why — and versions private
+packages too, since a package left out of the line contradicts the whole point.
+It does not override those options silently: a flag that stops meaning what it
+says is how a release ends up not matching what anyone asked for.
+
+One consequence to be aware of on a shared line: a breaking change in one
+package bumps **every** package, so an untouched package's version says "break"
+while its own changelog entry lists only what changed in it. That is inherent to
+one version line — you cannot signal per-package breakage with a shared number —
+and it errs toward over-signalling, which costs a consumer a range widening
+rather than a silent break.
 
 ### Commit Message Format
 
@@ -192,6 +213,7 @@ surface-check = true                    # diff each manifest against the last ta
 | `dry-run` | `boolean` | `false` | Preview all changes without writing files, committing, or tagging. |
 | `debug` | `boolean` | `false` | Show detailed inclusion/exclusion reasoning. Implies `dry-run`. |
 | `filter-by-package` | `boolean` | `true` | In a monorepo, only include commits that touched files within each package. Disable with `false` to include all commits in every changelog. |
+| `lockstep` | `boolean` | `false` | Keep every workspace package on one version. Refuses `scope = "changed"`, `skip-unchanged` and `per-package-tags`, and versions private packages so none falls out of the line. |
 | `include-private` | `boolean` | `false` | Version private packages alongside published ones. They are skipped by default, since no version of one is installable — unless every package in scope is private, in which case none is skipped. |
 | `skip-unchanged` | `boolean` | `false` | Skip packages with no matching commits even under shared tags. Already implied by `per-package-tags`. |
 | `surface-check` | `boolean` | `true` | Compare each `package.json` against the one at the last tag and refuse a bump that would hide a manifest-level break. |

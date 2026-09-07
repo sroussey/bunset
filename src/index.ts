@@ -39,6 +39,7 @@ import {
   BreakingChangeBumpError,
 } from "./version.ts";
 import { diffManifestSurface, describeSurfaceChanges } from "./surface.ts";
+import { findLockstepViolations, describeLockstepViolations } from "./lockstep.ts";
 import type {
   BumpType,
   GroupedCommits,
@@ -93,6 +94,14 @@ if (rawCommits.length === 0) {
   process.exit(1);
 }
 
+if (options.lockstep) {
+  const violations = findLockstepViolations(options);
+  if (violations.length > 0) {
+    console.error(describeLockstepViolations(violations));
+    process.exit(1);
+  }
+}
+
 if (options.release && !options.push) {
   console.error("--release requires --push (the tag must be on the remote).");
   process.exit(1);
@@ -144,7 +153,13 @@ let packages =
     ? await getChangedPackages(cwd, allPackages, lastTag)
     : allPackages;
 
-const selected = selectVersionablePackages(packages, options.includePrivate);
+// Lockstep means every package in the workspace shares one version, so a
+// private package cannot be left out of the line without contradicting it.
+const includePrivate = options.includePrivate || options.lockstep;
+if (options.lockstep && !options.includePrivate && packages.some((p) => p.private)) {
+  console.log("lockstep: versioning private packages too, so none falls out of the shared version.");
+}
+const selected = selectVersionablePackages(packages, includePrivate);
 for (const pkg of selected.skipped) {
   console.log(`${pkg.name}: "private": true, skipping (--include-private to version it).`);
 }

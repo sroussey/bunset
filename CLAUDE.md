@@ -24,6 +24,7 @@ src/
   git.ts            - Git operations via Bun.$
   deps.ts           - Dependency update detection
   surface.ts        - Manifest surface diff against the last tag (pure functions)
+  lockstep.ts       - Options that contradict one shared version (pure functions)
   workspace.ts      - Workspace detection and package discovery
   cli.ts            - Argument parsing (util.parseArgs) + interactive prompts
   index.ts          - Entry point orchestrator

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+### Bug Fixes
+
+- a 0.x feature belongs in the patch, not the minor (#7)
+
 ## 1.1.0
 
 ### Features

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+### Features
+
+- add --auto bump mode and manifest surface change detection (#6)
+
+### Chores
+
+- change bump strategy to auto in .bunset.toml
+
 ## 1.0.15
 
 ### Features

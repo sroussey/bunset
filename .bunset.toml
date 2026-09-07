@@ -1,4 +1,4 @@
 commit=true
 tag=true
-bump="patch"
+bump="auto"
 push=true

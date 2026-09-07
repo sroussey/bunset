@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import type { BumpType, CliOptions, CommitType, PackageScope } from "./types.ts";
+import type { BumpSelection, CliOptions, CommitType, PackageScope } from "./types.ts";
 import { normalizeType, DEFAULT_SECTIONS, ALL_SECTIONS } from "./commits.ts";
 
 export function printHelp(): void {
@@ -11,6 +11,8 @@ Options:
   --patch              Bump patch version (x.y.Z)
   --minor              Bump minor version (x.Y.0)
   --major              Bump major version (X.0.0)
+  --auto               Derive the bump per package from its commits:
+                       breaking -> the break slot, feat -> minor, else patch
   --all                Update all packages (monorepo)
   --changed            Update only changed packages (monorepo)
   --no-commit          Do not commit the version bump and changelog
@@ -25,9 +27,14 @@ Options:
   --debug              Show detailed inclusion/exclusion reasoning (implies --dry-run)
   --no-filter-by-package
                        Include all commits in every package changelog (monorepo)
+  --include-private    Version packages marked "private": true (skipped by default)
+  --skip-unchanged     Skip packages with no matching commits even under shared
+                       tags (already implied by --per-package-tags)
+  --no-surface-check   Do not compare each package.json against the last tag for
+                       breaks no commit message declared
   --help, -h           Show this help message
 
-When --patch/--minor/--major is omitted, you will be prompted interactively.
+When --patch/--minor/--major/--auto is omitted, you will be prompted interactively.
 In a monorepo, you will be prompted for --all or --changed if neither is given.
 
 Commit format:
@@ -47,8 +54,9 @@ Commit format:
       [feat!] Remove old API
     Or include a "BREAKING CHANGE:" footer in the commit body.
     Breaking commits are collected into a "Breaking Changes" section at the
-    top of the changelog entry. A breaking change makes --patch an error;
-    a warning is printed if the bump is minor rather than major.
+    top of the changelog entry, and rule out any bump below the break slot:
+    the major on a released line, the minor on a 0.x one (^0.4.8 already
+    admits only 0.4.x, so a 0.x break does not need a 1.0.0).
 
   Recognized type keywords:
     feat, feature          → Features
@@ -70,7 +78,7 @@ Config file (.bunset.toml):
   All fields are optional. CLI flags always override config values.
 
   Example:
-    bump = "patch"                          # "patch" | "minor" | "major"
+    bump = "patch"                          # "patch" | "minor" | "major" | "auto"
     scope = "changed"                       # "all" | "changed"
     commit = true                           # auto-commit (default: true)
     tag = true                              # create git tags (default: true)
@@ -81,7 +89,10 @@ Config file (.bunset.toml):
     release = false                         # create GitHub release (default: false)
     dry-run = false                         # preview without writing
     debug = false                           # detailed reasoning (implies dry-run)
-    filter-by-package = true                # per-package filtering (monorepo)`);
+    filter-by-package = true                # per-package filtering (monorepo)
+    include-private = false                 # version "private": true packages
+    skip-unchanged = false                  # skip packages with no commits
+    surface-check = true                    # diff each manifest against the last tag`);
 }
 
 export function resolveOptions(
@@ -98,14 +109,22 @@ export function resolveOptions(
         patch: { type: "boolean", default: false },
         minor: { type: "boolean", default: false },
         major: { type: "boolean", default: false },
+        auto: { type: "boolean", default: false },
         commit: { type: "boolean" },
+        "no-commit": { type: "boolean" },
         tag: { type: "boolean" },
+        "no-tag": { type: "boolean" },
         "per-package-tags": { type: "boolean", default: false },
         sections: { type: "string" },
         push: { type: "boolean", default: false },
         release: { type: "boolean", default: false },
         "dry-run": { type: "boolean", default: false },
-        "filter-by-package": { type: "boolean", default: true },
+        "filter-by-package": { type: "boolean" },
+        "no-filter-by-package": { type: "boolean" },
+        "include-private": { type: "boolean", default: false },
+        "skip-unchanged": { type: "boolean", default: false },
+        "surface-check": { type: "boolean" },
+        "no-surface-check": { type: "boolean" },
         "tag-prefix": { type: "string" },
         debug: { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
@@ -132,8 +151,8 @@ export function resolveOptions(
   const bump = cliBump ?? config.bump ?? null;
   const scope = cliScope ?? config.scope ?? (isWs ? null : "all");
 
-  const commit = values.commit !== undefined ? (values.commit as boolean) : (config.commit ?? null);
-  const tag = values.tag !== undefined ? (values.tag as boolean) : (config.tag ?? null);
+  const commit = flag(values, "commit") ?? config.commit ?? null;
+  const tag = flag(values, "tag") ?? config.tag ?? null;
   const perPackageTags = values["per-package-tags"]
     ? true
     : (config.perPackageTags ?? false);
@@ -147,27 +166,45 @@ export function resolveOptions(
   const debug = values.debug ? true : (config.debug ?? false);
   const dryRun = debug || values["dry-run"] ? true : (config.dryRun ?? false);
 
-  const filterByPackage = values["filter-by-package"] === false
-    ? false
-    : (config.filterByPackage ?? true);
+  const filterByPackage = flag(values, "filter-by-package") ?? config.filterByPackage ?? true;
+
+  const includePrivate = values["include-private"]
+    ? true
+    : (config.includePrivate ?? false);
+  const skipUnchanged = values["skip-unchanged"]
+    ? true
+    : (config.skipUnchanged ?? false);
+  const surfaceCheck = flag(values, "surface-check") ?? config.surfaceCheck ?? true;
 
   const tagPrefix = values["tag-prefix"] as string | undefined
     ?? config.tagPrefix
     ?? null;
 
   if (bump && scope && commit !== null && tag !== null) {
-    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug };
+    return { scope, bump, commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck };
   }
 
   return promptForMissing(
-    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug },
+    { commit, tag, perPackageTags, sections, dryRun, filterByPackage, tagPrefix, push, release, debug, includePrivate, skipUnchanged, surfaceCheck },
     bump,
     scope,
     isWs,
   );
 }
 
-function resolveBump(values: Record<string, unknown>): BumpType | null {
+/**
+ * A boolean flag that can be spelled either way. Bun's `parseArgs` has no
+ * `--no-` negation of its own, so both spellings are declared and read here;
+ * null means neither was given, leaving the config value to decide.
+ */
+export function flag(values: Record<string, unknown>, name: string): boolean | null {
+  if (values[`no-${name}`] === true) return false;
+  if (values[name] === true) return true;
+  return null;
+}
+
+function resolveBump(values: Record<string, unknown>): BumpSelection | null {
+  if (values.auto) return "auto";
   if (values.major) return "major";
   if (values.minor) return "minor";
   if (values.patch) return "patch";
@@ -206,11 +243,14 @@ interface MergedDefaults {
   push: boolean;
   release: boolean;
   debug: boolean;
+  includePrivate: boolean;
+  skipUnchanged: boolean;
+  surfaceCheck: boolean;
 }
 
 async function promptForMissing(
   merged: MergedDefaults,
-  bump: BumpType | null,
+  bump: BumpSelection | null,
   scope: PackageScope | null,
   isWs: boolean,
 ): Promise<CliOptions> {
@@ -224,11 +264,12 @@ async function promptForMissing(
 
   if (!bump) {
     process.stdout.write(
-      "Version bump: (1) patch  (2) minor  (3) major [default: 1]: ",
+      "Version bump: (1) patch  (2) minor  (3) major  (4) auto (from commits) [default: 1]: ",
     );
     const answer = await readLine();
     const choice = answer.trim();
-    if (choice === "3") bump = "major";
+    if (choice === "4") bump = "auto";
+    else if (choice === "3") bump = "major";
     else if (choice === "2") bump = "minor";
     else bump = "patch";
   }

@@ -18,11 +18,12 @@ A zero-dependency CLI tool that automates version bumping and changelog generati
 ```
 src/
   types.ts          - Shared interfaces and type aliases
-  version.ts        - Semver parsing and bumping (pure functions)
+  version.ts        - Semver parsing, bumping, break-slot rules (pure functions)
   commits.ts        - Commit message parsing and grouping (pure functions)
   changelog.ts      - Changelog entry building and file writing
   git.ts            - Git operations via Bun.$
   deps.ts           - Dependency update detection
+  surface.ts        - Manifest surface diff against the last tag (pure functions)
   workspace.ts      - Workspace detection and package discovery
   cli.ts            - Argument parsing (util.parseArgs) + interactive prompts
   index.ts          - Entry point orchestrator
@@ -33,6 +34,7 @@ src/
 - Use `Bun.file` / `Bun.write` for file I/O, not `node:fs`
 - Use `Bun.$` for shell commands, not `child_process` or `execa`
 - Use `Bun.Glob` for file discovery, not `glob` or `fast-glob`
-- Keep core logic as pure functions (commits.ts, version.ts) separate from I/O (git.ts, changelog.ts)
+- Keep core logic as pure functions (commits.ts, version.ts, surface.ts) separate from I/O (git.ts, changelog.ts)
+- Bun's `parseArgs` has no `--no-` negation: declare both spellings and read them through `flag()` in cli.ts
 - Test files live alongside source files as `*.test.ts`
 - Commit messages follow `[type] description` format where type is `feat`/`fix`/`test`

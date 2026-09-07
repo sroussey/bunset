@@ -4,7 +4,7 @@ import { normalizeType, ALL_SECTIONS } from "./commits.ts";
 
 const CONFIG_FILE = ".bunset.toml";
 
-const VALID_BUMPS = new Set(["patch", "minor", "major"]);
+const VALID_BUMPS = new Set(["patch", "minor", "major", "auto"]);
 const VALID_SCOPES = new Set(["all", "changed"]);
 
 export async function loadConfig(
@@ -43,6 +43,18 @@ export async function loadConfig(
 
   if (typeof raw["filter-by-package"] === "boolean") {
     config.filterByPackage = raw["filter-by-package"];
+  }
+
+  if (typeof raw["include-private"] === "boolean") {
+    config.includePrivate = raw["include-private"];
+  }
+
+  if (typeof raw["skip-unchanged"] === "boolean") {
+    config.skipUnchanged = raw["skip-unchanged"];
+  }
+
+  if (typeof raw["surface-check"] === "boolean") {
+    config.surfaceCheck = raw["surface-check"];
   }
 
   if (typeof raw["tag-prefix"] === "string") {

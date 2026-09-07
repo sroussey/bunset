@@ -1,5 +1,5 @@
-import { $ } from "bun";
 import type { UpdatedDependency } from "./types.ts";
+import { readPackageJsonAtRef } from "./git.ts";
 
 export async function getUpdatedDependencies(
   cwd: string,
@@ -8,17 +8,8 @@ export async function getUpdatedDependencies(
 ): Promise<UpdatedDependency[]> {
   if (!sinceRef) return [];
 
-  let oldPkg: Record<string, unknown>;
-  try {
-    const relativePath = packageJsonPath.startsWith(cwd)
-      ? packageJsonPath.slice(cwd.length + 1)
-      : packageJsonPath;
-    const result =
-      await $`git -C ${cwd} show ${sinceRef}:${relativePath}`.quiet();
-    oldPkg = JSON.parse(result.text());
-  } catch {
-    return [];
-  }
+  const oldPkg = await readPackageJsonAtRef(cwd, packageJsonPath, sinceRef);
+  if (!oldPkg) return [];
 
   const currentPkg = await Bun.file(packageJsonPath).json();
   const updated: UpdatedDependency[] = [];

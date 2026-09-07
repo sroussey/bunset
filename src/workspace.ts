@@ -35,9 +35,29 @@ function packageInfoFromJson(pkg: Record<string, unknown>, dir: string): Package
     path: dir,
     packageJsonPath: join(dir, "package.json"),
     version: (pkg.version as string) ?? "0.0.0",
+    private: pkg.private === true,
     dependencies: (pkg.dependencies as Record<string, string>) ?? {},
     devDependencies: (pkg.devDependencies as Record<string, string>) ?? {},
   };
+}
+
+/**
+ * The packages a release should version.
+ *
+ * A `private: true` package is never published, so a version number on one
+ * records a release no consumer could install. But that only holds where
+ * something else in the repo IS published: a workspace whose packages are all
+ * private is a private product, and its version numbers are the whole point.
+ * So private packages are dropped only when a publishable one remains.
+ */
+export function selectVersionablePackages(
+  packages: readonly PackageInfo[],
+  includePrivate: boolean,
+): { versionable: PackageInfo[]; skipped: PackageInfo[] } {
+  if (includePrivate) return { versionable: [...packages], skipped: [] };
+  const publishable = packages.filter((p) => !p.private);
+  if (publishable.length === 0) return { versionable: [...packages], skipped: [] };
+  return { versionable: publishable, skipped: packages.filter((p) => p.private) };
 }
 
 export async function getChangedPackages(

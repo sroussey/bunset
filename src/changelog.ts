@@ -1,5 +1,24 @@
-import type { CommitType, GroupedCommits, UpdatedDependency } from "./types.ts";
+import type { CommitType, GroupedCommits, ParsedCommit, UpdatedDependency } from "./types.ts";
 import { DEFAULT_SECTIONS } from "./commits.ts";
+
+/**
+ * What an entry says when it would otherwise be a bare version heading.
+ *
+ * A version with nothing under it reads as a mistake. These say which of the
+ * two reasons it was: the package genuinely did not change and moved because
+ * the workspace shares one version line, or it did change and `--sections`
+ * renders none of those types.
+ */
+export const NO_CHANGES_NOTE = "_No changes in this package._";
+export const NO_RENDERED_SECTIONS_NOTE =
+  "_No changes in the sections this changelog renders._";
+
+const PLACEHOLDER_NOTES = new Set([NO_CHANGES_NOTE, NO_RENDERED_SECTIONS_NOTE]);
+
+/** Whether an entry body carries nothing but one of the notes above. */
+export function isPlaceholderEntry(body: string): boolean {
+  return PLACEHOLDER_NOTES.has(body.trim());
+}
 
 const SECTION_HEADINGS: Record<CommitType, string> = {
   feature: "Features",
@@ -20,11 +39,22 @@ export function buildChangelogEntry(
   groups: GroupedCommits,
   updatedDeps: UpdatedDependency[] = [],
   sections: CommitType[] = DEFAULT_SECTIONS,
+  repoWideBreaking: readonly ParsedCommit[] = [],
 ): string {
   const lines: string[] = [`## ${version}`, ""];
+  const heading = lines.length;
 
-  // Collect breaking changes across all types
-  const breakingCommits = Object.values(groups).flat().filter((c) => c.breaking);
+  const own = Object.values(groups).flat();
+  const claimed = new Set(own.map((c) => c.hash));
+
+  // Breaking changes ignore `sections` and survive an otherwise empty entry:
+  // the one thing a reader must not have to go looking for is what broke.
+  // `repoWideBreaking` carries breaks that touched no package directory — they
+  // gate every package in the release, so they belong in every package's entry.
+  const breakingCommits = [
+    ...own.filter((c) => c.breaking),
+    ...repoWideBreaking.filter((c) => !claimed.has(c.hash)),
+  ];
   if (breakingCommits.length > 0) {
     lines.push("### Breaking Changes", "");
     for (const c of breakingCommits) {
@@ -81,6 +111,10 @@ export function buildChangelogEntry(
     lines.push("");
   }
 
+  if (lines.length === heading) {
+    lines.push(own.length === 0 ? NO_CHANGES_NOTE : NO_RENDERED_SECTIONS_NOTE, "");
+  }
+
   return lines.join("\n");
 }
 
@@ -88,7 +122,12 @@ export function buildReleaseNotes(
   entries: Iterable<{ pkgName: string; entry: string }>,
 ): string {
   const stripVersion = (e: string) => e.replace(/^## [^\n]*\n+/, "");
-  const nonEmpty = [...entries].filter(({ entry }) => stripVersion(entry).trim() !== "");
+  // A placeholder note is not content: a package carried along by a shared
+  // version line still has nothing to announce in the release notes.
+  const nonEmpty = [...entries].filter(({ entry }) => {
+    const body = stripVersion(entry).trim();
+    return body !== "" && !isPlaceholderEntry(body);
+  });
   if (nonEmpty.length === 0) return "";
   if (nonEmpty.length === 1) return stripVersion(nonEmpty[0]!.entry);
   return nonEmpty

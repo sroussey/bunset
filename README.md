@@ -126,6 +126,20 @@ one version line — you cannot signal per-package breakage with a shared number
 and it errs toward over-signalling, which costs a consumer a range widening
 rather than a silent break.
 
+### Empty Entries
+
+Under shared tags a package moves with the line even when nothing in it changed,
+and `--sections` can filter out everything a package did have. Rather than a
+version heading with nothing under it, the entry says which of the two happened:
+`_No changes in this package._` or `_No changes in the sections this changelog
+renders._` Those entries are still left out of the GitHub release notes, since a
+package carried along has nothing to announce.
+
+Breaking changes are the exception to every filter. They ignore `--sections`,
+they keep an entry from being treated as empty, and a breaking commit that
+touched no package directory — a root config or workflow change — is recorded in
+**every** package's entry, because it gates every package in the release.
+
 ### Commit Message Format
 
 Commits are automatically matched against these patterns (case-insensitive):

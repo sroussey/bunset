@@ -430,6 +430,7 @@ if (options.dryRun) {
       groups,
       updatedDeps,
       options.sections,
+      unclaimedBreaking,
     );
 
     console.log(`\nChangelog entry for ${pkg.name}:`);
@@ -519,6 +520,7 @@ for (const plan of plans) {
     groups,
     updatedDeps,
     options.sections,
+    unclaimedBreaking,
   );
   await writeChangelog(pkg.path, entry);
   changedFiles.push(`${pkg.path}/CHANGELOG.md`);

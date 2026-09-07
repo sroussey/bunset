@@ -1,5 +1,11 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { buildChangelogEntry, buildReleaseNotes, writeChangelog } from "./changelog.ts";
+import {
+  buildChangelogEntry,
+  buildReleaseNotes,
+  writeChangelog,
+  NO_CHANGES_NOTE,
+  NO_RENDERED_SECTIONS_NOTE,
+} from "./changelog.ts";
 import { COMMIT_TYPES } from "./commits.ts";
 import type { GroupedCommits } from "./types.ts";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -258,5 +264,104 @@ describe("buildReleaseNotes", () => {
       { pkgName: "pkg-b", entry: "## 1.2.3\n\n" },
     ]);
     expect(result).toBe("");
+  });
+});
+
+describe("entries that would otherwise be a bare heading", () => {
+  const breakingCommit = (hash: string, description: string) => ({
+    hash,
+    message: `feat!: ${description}`,
+    type: "feature" as const,
+    commitScope: null,
+    breaking: true,
+    files: [],
+    description,
+  });
+
+  test("a package with no commits says so instead of showing an empty version", () => {
+    const entry = buildChangelogEntry("0.5.0", emptyGroups());
+    expect(entry).toContain("## 0.5.0");
+    expect(entry).toContain(NO_CHANGES_NOTE);
+  });
+
+  test("commits filtered out by --sections get the other note", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add a flag" },
+      ],
+    };
+    const entry = buildChangelogEntry("1.5.0", groups, [], ["bugfix"]);
+    expect(entry).toContain(NO_RENDERED_SECTIONS_NOTE);
+    expect(entry).not.toContain(NO_CHANGES_NOTE);
+  });
+
+  test("updated dependencies alone are content, so no note is added", () => {
+    const entry = buildChangelogEntry("1.5.0", emptyGroups(), [
+      { name: "lodash", newVersion: "4.18.0" },
+    ]);
+    expect(entry).toContain("### Updated Dependencies");
+    expect(entry).not.toContain(NO_CHANGES_NOTE);
+  });
+
+  test("a breaking change survives even when --sections renders nothing", () => {
+    const groups: GroupedCommits = {
+      ...emptyGroups(),
+      feature: [breakingCommit("a", "Remove the old API")],
+    };
+    const entry = buildChangelogEntry("2.0.0", groups, [], ["bugfix"]);
+    expect(entry).toContain("### Breaking Changes");
+    expect(entry).toContain("Remove the old API");
+    expect(entry).not.toContain(NO_CHANGES_NOTE);
+    expect(entry).not.toContain(NO_RENDERED_SECTIONS_NOTE);
+  });
+
+  test("a repo-wide break reaches a package that has no commits of its own", () => {
+    // It gates every package in the release, so it belongs in every entry —
+    // otherwise the major has no explanation anywhere in this package's log.
+    const entry = buildChangelogEntry("2.0.0", emptyGroups(), [], ["bugfix"], [
+      breakingCommit("root1", "Drop root-level config support"),
+    ]);
+    expect(entry).toContain("### Breaking Changes");
+    expect(entry).toContain("Drop root-level config support");
+    expect(entry).not.toContain(NO_CHANGES_NOTE);
+  });
+
+  test("a repo-wide break already in the package's own commits is not listed twice", () => {
+    const commit = breakingCommit("shared", "Remove the old API");
+    const groups: GroupedCommits = { ...emptyGroups(), feature: [commit] };
+    const entry = buildChangelogEntry("2.0.0", groups, [], ["feature"], [commit]);
+    expect(entry.match(/Remove the old API/g)).toHaveLength(2); // breaking section + features
+  });
+});
+
+describe("buildReleaseNotes with placeholder entries", () => {
+  test("a package carried by the shared version line is left out", () => {
+    const notes = buildReleaseNotes([
+      { pkgName: "pkg-a", entry: buildChangelogEntry("0.5.0", { ...emptyGroups(), feature: [
+        { hash: "a", message: "", type: "feature", commitScope: null, breaking: false, files: [], description: "Add a flag" },
+      ] }) },
+      { pkgName: "pkg-b", entry: buildChangelogEntry("0.5.0", emptyGroups()) },
+    ]);
+    expect(notes).toContain("Add a flag");
+    expect(notes).not.toContain("pkg-b");
+    expect(notes).not.toContain(NO_CHANGES_NOTE);
+  });
+
+  test("but an entry carrying only a breaking change is kept", () => {
+    const notes = buildReleaseNotes([
+      { pkgName: "pkg-b", entry: buildChangelogEntry("2.0.0", emptyGroups(), [], ["bugfix"], [
+        { hash: "r", message: "feat!: drop root config", type: "feature", commitScope: null, breaking: true, files: [], description: "Drop root config" },
+      ]) },
+    ]);
+    expect(notes).toContain("Drop root config");
+  });
+
+  test("every package being a placeholder yields no notes at all", () => {
+    const notes = buildReleaseNotes([
+      { pkgName: "a", entry: buildChangelogEntry("0.5.0", emptyGroups()) },
+      { pkgName: "b", entry: buildChangelogEntry("0.5.0", emptyGroups()) },
+    ]);
+    expect(notes).toBe("");
   });
 });

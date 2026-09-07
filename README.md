@@ -48,11 +48,17 @@ When bump type or scope flags are omitted, interactive prompts will ask.
 `--auto` makes the version a function of what changed rather than of whichever
 flag the release script was written with. Per package:
 
-| Evidence since the last tag | Bump |
-|---|---|
-| A breaking commit, or a manifest break (see below) | the **break slot** |
-| Any `feat` | minor |
-| Anything else | patch |
+| Evidence since the last tag | On `1.x` and up | On `0.x` |
+|---|---|---|
+| A breaking commit, or a manifest break (see below) | major | minor |
+| Any `feat` | minor | patch |
+| Anything else | patch | patch |
+
+The 0.x column follows from the break slot below: since `^0.4.8` already admits
+only `0.4.x`, the minor is where a break has to land — so a feature goes in the
+patch, and the two stay distinguishable in the number. Put a feature in the 0.x
+minor and it is indistinguishable from a break, and every consumer has to widen
+a range for something that broke nothing.
 
 Under shared tags every package moves to one version, so the bump is the
 strongest any released package calls for.
@@ -68,6 +74,10 @@ that is the **major**. `^0.4.8` admits only `0.4.x`, so on a 0.x line the
 bunset refuses any bump below that slot and names the offending commits,
 including under `--dry-run`. This is the check that catches a break marked
 `feat!:` and released as `0.4.9`.
+
+The refusal compares the versions actually being written, not the name of the
+bump — under shared tags a package at `0.5.0` set to `2.0.1` has left every
+`^0.5.0` range, whatever the release calls itself.
 
 ### Undeclared Breaking Changes
 

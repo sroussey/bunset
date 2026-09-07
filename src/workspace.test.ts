@@ -55,4 +55,21 @@ describe("selectVersionablePackages", () => {
   test("an empty list stays empty", () => {
     expect(selectVersionablePackages([], false).versionable).toEqual([]);
   });
+
+  test("a --changed subset of only private packages is still not a private workspace", () => {
+    // The scoped set is all-private, but the workspace has a published package,
+    // so the fallback must not fire and start versioning the private ones.
+    const workspace = [pkg("published", false), pkg("aws", true), pkg("cf", true)];
+    const changed = [pkg("aws", true), pkg("cf", true)];
+    const result = selectVersionablePackages(changed, false, workspace);
+    expect(result.versionable).toEqual([]);
+    expect(names(result.skipped)).toEqual(["aws", "cf"]);
+  });
+
+  test("an all-private workspace still keeps a private --changed subset", () => {
+    const workspace = [pkg("api", true), pkg("app", true)];
+    const result = selectVersionablePackages([pkg("api", true)], false, workspace);
+    expect(names(result.versionable)).toEqual(["api"]);
+    expect(result.skipped).toEqual([]);
+  });
 });

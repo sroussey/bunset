@@ -11,7 +11,11 @@ function exportKeys(exports: unknown): Set<string> {
   const keys = new Set<string>();
 
   const walk = (node: unknown, subpath: string, condition: string): void => {
-    if (node === null || typeof node !== "object" || Array.isArray(node)) {
+    // `null` is how a manifest spells "this subpath/condition no longer
+    // resolves", so it contributes no key — which is what makes nulling one
+    // out show up as a removal rather than as an unchanged export.
+    if (node === null) return;
+    if (typeof node !== "object" || Array.isArray(node)) {
       keys.add(condition ? `${subpath}:${condition}` : subpath);
       return;
     }
@@ -33,7 +37,9 @@ function exportKeys(exports: unknown): Set<string> {
 }
 
 function binKeys(bin: unknown, packageName: string): Set<string> {
-  if (typeof bin === "string") return new Set([packageName]);
+  // A string `bin` installs under the package's unscoped name, so "@scope/p"
+  // and { p: ... } name the same binary and must compare equal.
+  if (typeof bin === "string") return new Set([packageName.split("/").pop()!]);
   if (bin !== null && typeof bin === "object") return new Set(Object.keys(bin as Manifest));
   return new Set();
 }
@@ -97,16 +103,39 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
     const newExports = exportKeys(newPkg.exports);
     for (const key of oldExports) {
       if (newExports.has(key)) continue;
-      const [subpath, condition] = key.split(":");
-      if (condition === undefined) {
-        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
-      } else if (!newExports.has(subpath!) && ![...newExports].some((k) => k.startsWith(`${subpath}:`))) {
-        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
-      } else {
+
+      const split = key.indexOf(":");
+      const subpath = split === -1 ? key : key.slice(0, split);
+      const condition = split === -1 ? undefined : key.slice(split + 1);
+
+      // A bare target under the subpath resolves for every condition, so it
+      // covers whatever condition used to be spelled out. Collapsing
+      // { types, import } down to one string broadens the export; it is not a
+      // removal, and reporting it as one refuses a release that broke nothing.
+      const newIsUnconditional = newExports.has(subpath);
+      const newConditions = [...newExports].filter((k) => k.startsWith(`${subpath}:`));
+
+      if (condition !== undefined) {
+        if (newIsUnconditional) continue;
+        changes.push(
+          newConditions.length === 0
+            ? { kind: "export-removed", detail: `exports["${subpath}"] was removed` }
+            : {
+                kind: "condition-removed",
+                detail: `exports["${subpath}"] no longer resolves the "${condition}" condition`,
+              },
+        );
+      } else if (newConditions.length > 0) {
+        // The reverse narrowing: what resolved everywhere now resolves only
+        // under named conditions, so any other resolver stops finding it.
         changes.push({
           kind: "condition-removed",
-          detail: `exports["${subpath}"] no longer resolves the "${condition}" condition`,
+          detail:
+            `exports["${subpath}"] no longer resolves unconditionally ` +
+            `(only under ${newConditions.map((k) => `"${k.slice(subpath.length + 1)}"`).join(", ")})`,
         });
+      } else {
+        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
       }
     }
   }
@@ -144,7 +173,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
   return changes;
 }
 
-/** Dedupe changes into one message body naming the package. */
+/** One message body naming the package, a line per change. */
 export function describeSurfaceChanges(
   pkgName: string,
   changes: readonly SurfaceChange[],

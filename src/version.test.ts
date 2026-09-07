@@ -5,6 +5,8 @@ import {
   findBreakingCommits,
   assertBumpAllowsBreakingChanges,
   breakingBumpSlot,
+  escapesCaretRange,
+  assertReleaseCarriesBreakingChanges,
   deriveBump,
   maxBump,
   BreakingChangeBumpError,
@@ -216,5 +218,62 @@ describe("deriveBump", () => {
 
   test("the break wins over a feature in the same set", () => {
     expect(deriveBump([feature, breaking], "1.2.3")).toBe("major");
+  });
+});
+
+describe("escapesCaretRange", () => {
+  test("a released line escapes only on the major", () => {
+    expect(escapesCaretRange("1.2.3", "1.2.4")).toBe(false);
+    expect(escapesCaretRange("1.2.3", "1.9.0")).toBe(false);
+    expect(escapesCaretRange("1.2.3", "2.0.0")).toBe(true);
+  });
+
+  test("a 0.x line escapes on the minor", () => {
+    expect(escapesCaretRange("0.4.8", "0.4.9")).toBe(false);
+    expect(escapesCaretRange("0.4.8", "0.5.0")).toBe(true);
+    expect(escapesCaretRange("0.4.8", "1.0.0")).toBe(true);
+  });
+
+  test("^0.0.z admits nothing but itself", () => {
+    expect(escapesCaretRange("0.0.3", "0.0.4")).toBe(true);
+    expect(escapesCaretRange("0.0.3", "0.0.3")).toBe(false);
+  });
+
+  test("a shared line can carry a package far past its own slot", () => {
+    // The case the bump name cannot express: a package at 0.5.0 set to 2.0.1 by
+    // a release that calls itself a patch has still left every ^0.5.0 range.
+    expect(escapesCaretRange("0.5.0", "2.0.1")).toBe(true);
+  });
+});
+
+describe("assertReleaseCarriesBreakingChanges", () => {
+  const breaking = parseCommit("a1b2c3d4", "feat!: remove the legacy API");
+  const plain = parseCommit("d4e5f6a7", "feat: add a flag");
+
+  test("refuses when the landing version stays inside the old caret range", () => {
+    expect(() => assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1")).toThrow(
+      BreakingChangeBumpError,
+    );
+  });
+
+  test("allows a jump that leaves the range, whatever the bump was called", () => {
+    expect(() =>
+      assertReleaseCarriesBreakingChanges([breaking], "0.5.0", "2.0.1"),
+    ).not.toThrow();
+  });
+
+  test("says which versions it compared", () => {
+    let message = "";
+    try {
+      assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1");
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain("1.4.0 → 1.4.1");
+    expect(message).toContain("^1.4.0");
+  });
+
+  test("nothing breaking, nothing to refuse", () => {
+    expect(() => assertReleaseCarriesBreakingChanges([plain], "1.4.0", "1.4.1")).not.toThrow();
   });
 });

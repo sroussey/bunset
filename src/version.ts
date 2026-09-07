@@ -8,12 +8,21 @@ export class BreakingChangeBumpError extends Error {
   readonly bump: BumpType;
   readonly commits: readonly ParsedCommit[];
 
-  constructor(bump: BumpType, commits: readonly ParsedCommit[], required: BumpType) {
+  constructor(
+    bump: BumpType,
+    commits: readonly ParsedCommit[],
+    required: BumpType,
+    versions?: { from: string; to: string },
+  ) {
     const list = commits
       .map((c) => `  ${c.hash.slice(0, 7)} ${c.message.split("\n")[0]}`)
       .join("\n");
+    const situation = versions
+      ? `Breaking changes found, but ${versions.from} \u2192 ${versions.to} stays inside ` +
+        `a "^${versions.from}" range, so consumers would resolve it silently:`
+      : `Breaking changes found, so a "${bump}" release is not allowed:`;
     super(
-      `Breaking changes found, so a "${bump}" release is not allowed:\n${list}\n` +
+      `${situation}\n${list}\n` +
         `Re-run with --${required}${required === "minor" ? " or --major" : ""}, ` +
         `or --auto to let the commits choose.`,
     );
@@ -49,6 +58,25 @@ export function breakingBumpSlot(currentVersion: string): BumpType {
 }
 
 /**
+ * Whether moving from one version to another leaves the caret range a consumer
+ * pinned on the old one — which is what decides whether a break is visible.
+ *
+ * `^1.2.3` admits everything below 2.0.0, `^0.2.3` only 0.2.x, and `^0.0.3`
+ * nothing but itself. Asking this of the actual before/after pair is stricter
+ * than asking which bump was named: under shared tags a package at 0.5.0 can
+ * land on 2.0.1 while the release calls itself a patch, and that jump plainly
+ * escapes `^0.5.0`.
+ */
+export function escapesCaretRange(from: string, to: string): boolean {
+  const [fromMajor, fromMinor] = parseSemver(from);
+  const [toMajor, toMinor, toPatch] = parseSemver(to);
+  if (fromMajor > 0) return toMajor > fromMajor;
+  if (fromMinor > 0) return toMajor > 0 || toMinor > fromMinor;
+  const [, , fromPatch] = parseSemver(from);
+  return toMajor > 0 || toMinor > 0 || toPatch !== fromPatch;
+}
+
+/**
  * A `!` marker (or `BREAKING CHANGE:` footer) rules out any bump below the
  * break slot for the version being released: publishing one would hide the
  * break from every consumer's version range.
@@ -67,6 +95,27 @@ export function assertBumpAllowsBreakingChanges(
   const breaking = findBreakingCommits(commits);
   if (breaking.length === 0) return;
   throw new BreakingChangeBumpError(bump, breaking, required);
+}
+
+/**
+ * The same rule stated against the versions a release will actually write,
+ * rather than against the name of the bump. Use this wherever the resulting
+ * version is known: it is what a consumer's range actually sees.
+ */
+export function assertReleaseCarriesBreakingChanges(
+  commits: readonly ParsedCommit[],
+  fromVersion: string,
+  toVersion: string,
+): void {
+  if (escapesCaretRange(fromVersion, toVersion)) return;
+  const breaking = findBreakingCommits(commits);
+  if (breaking.length === 0) return;
+  throw new BreakingChangeBumpError(
+    "patch",
+    breaking,
+    breakingBumpSlot(fromVersion),
+    { from: fromVersion, to: toVersion },
+  );
 }
 
 /**

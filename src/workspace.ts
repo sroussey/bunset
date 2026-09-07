@@ -49,15 +49,25 @@ function packageInfoFromJson(pkg: Record<string, unknown>, dir: string): Package
  * something else in the repo IS published: a workspace whose packages are all
  * private is a private product, and its version numbers are the whole point.
  * So private packages are dropped only when a publishable one remains.
+ *
+ * `workspace` is what answers that question and defaults to `packages`. They
+ * differ under `--changed`, where `packages` is only what this release touched:
+ * a release that happens to touch nothing but the private packages must not
+ * read as a private workspace and start versioning them.
  */
 export function selectVersionablePackages(
   packages: readonly PackageInfo[],
   includePrivate: boolean,
+  workspace: readonly PackageInfo[] = packages,
 ): { versionable: PackageInfo[]; skipped: PackageInfo[] } {
   if (includePrivate) return { versionable: [...packages], skipped: [] };
-  const publishable = packages.filter((p) => !p.private);
-  if (publishable.length === 0) return { versionable: [...packages], skipped: [] };
-  return { versionable: publishable, skipped: packages.filter((p) => p.private) };
+  if (!workspace.some((p) => !p.private)) {
+    return { versionable: [...packages], skipped: [] };
+  }
+  return {
+    versionable: packages.filter((p) => !p.private),
+    skipped: packages.filter((p) => p.private),
+  };
 }
 
 export async function getChangedPackages(

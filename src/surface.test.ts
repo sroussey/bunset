@@ -146,3 +146,51 @@ describe("describeSurfaceChanges", () => {
     expect(text).toContain("private");
   });
 });
+
+describe("regressions", () => {
+  test("a null-ed subpath is a removal, not an unchanged export", () => {
+    // `null` is how a manifest says "this no longer resolves". Treating it as a
+    // live target made the removal invisible.
+    const before = { name: "p", exports: { ".": "./a.js", "./storage": "./s.js" } };
+    const after = { name: "p", exports: { ".": "./a.js", "./storage": null } };
+    const changes = diffManifestSurface(before, after);
+    expect(changes.map((c) => c.kind)).toEqual(["export-removed"]);
+    expect(changes[0]!.detail).toContain("./storage");
+  });
+
+  test("a null-ed condition is a removal too", () => {
+    const before = { name: "p", exports: { ".": { bun: "./b.js", import: "./n.js" } } };
+    const after = { name: "p", exports: { ".": { bun: null, import: "./n.js" } } };
+    expect(diffManifestSurface(before, after).map((c) => c.kind)).toEqual(["condition-removed"]);
+  });
+
+  test("a scoped string bin equals the same bin spelled out", () => {
+    // npm installs a string bin under the unscoped name, so these are one binary.
+    expect(
+      diffManifestSurface(
+        { name: "@scope/p", bin: "./cli.js" },
+        { name: "@scope/p", bin: { p: "./cli.js" } },
+      ),
+    ).toEqual([]);
+  });
+
+  test("collapsing conditions to one string is a broadening, not a removal", () => {
+    // A bare target resolves under every condition, so nothing stopped resolving.
+    expect(
+      diffManifestSurface(
+        { name: "p", exports: { ".": { types: "./d.ts", import: "./a.js" } } },
+        { name: "p", exports: { ".": "./a.js" } },
+      ),
+    ).toEqual([]);
+  });
+
+  test("but going the other way — unconditional to conditional — is a narrowing", () => {
+    const changes = diffManifestSurface(
+      { name: "p", exports: { ".": "./a.js" } },
+      { name: "p", exports: { ".": { import: "./a.js" } } },
+    );
+    expect(changes.map((c) => c.kind)).toEqual(["condition-removed"]);
+    expect(changes[0]!.detail).toContain("unconditionally");
+    expect(changes[0]!.detail).toContain("import");
+  });
+});

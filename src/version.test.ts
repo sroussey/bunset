@@ -5,6 +5,7 @@ import {
   findBreakingCommits,
   assertBumpAllowsBreakingChanges,
   breakingBumpSlot,
+  featureBumpSlot,
   escapesCaretRange,
   assertReleaseCarriesBreakingChanges,
   deriveBump,
@@ -132,6 +133,24 @@ describe("breakingBumpSlot", () => {
   });
 });
 
+describe("featureBumpSlot", () => {
+  test("a released line takes features in the minor", () => {
+    expect(featureBumpSlot("1.2.3")).toBe("minor");
+    expect(featureBumpSlot("12.0.0")).toBe("minor");
+  });
+
+  test("a 0.x line takes them in the patch, leaving the minor for breaks", () => {
+    expect(featureBumpSlot("0.4.8")).toBe("patch");
+    expect(featureBumpSlot("0.0.1")).toBe("patch");
+  });
+
+  test("the two slots never collide on a released line, and never on 0.x either", () => {
+    for (const version of ["0.0.1", "0.4.8", "1.2.3", "9.9.9"]) {
+      expect(featureBumpSlot(version)).not.toBe(breakingBumpSlot(version));
+    }
+  });
+});
+
 describe("maxBump", () => {
   test("returns the more severe of the two", () => {
     expect(maxBump("patch", "minor")).toBe("minor");
@@ -202,9 +221,19 @@ describe("deriveBump", () => {
     expect(deriveBump([footer], "1.2.3")).toBe("major");
   });
 
-  test("a feature takes the minor", () => {
+  test("a feature takes the minor on a released line", () => {
     expect(deriveBump([feature, fix], "1.2.3")).toBe("minor");
-    expect(deriveBump([feature, fix], "0.4.8")).toBe("minor");
+  });
+
+  test("but the patch on a 0.x line, where the minor is the break slot", () => {
+    // A feature and a break must not produce the same number: on 0.x the minor
+    // is reserved for breaks, so an addition goes in the patch.
+    expect(deriveBump([feature, fix], "0.4.8")).toBe("patch");
+    expect(deriveBump([feature], "0.0.3")).toBe("patch");
+  });
+
+  test("a break still outranks a feature on a 0.x line", () => {
+    expect(deriveBump([feature, breaking], "0.4.8")).toBe("minor");
   });
 
   test("anything else takes the patch", () => {

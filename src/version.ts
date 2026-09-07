@@ -77,6 +77,20 @@ export function escapesCaretRange(from: string, to: string): boolean {
 }
 
 /**
+ * The slot a backwards-compatible feature lands in.
+ *
+ * On a released line that is the minor, as semver says. On a 0.x line the minor
+ * is already the break slot ({@link breakingBumpSlot}), so a feature goes in the
+ * patch instead: putting it in the minor would make an addition and a break
+ * indistinguishable in the number, and would push every consumer to widen a
+ * range for something that broke nothing.
+ */
+export function featureBumpSlot(currentVersion: string): BumpType {
+  const [major] = parseSemver(currentVersion);
+  return major === 0 ? "patch" : "minor";
+}
+
+/**
  * A `!` marker (or `BREAKING CHANGE:` footer) rules out any bump below the
  * break slot for the version being released: publishing one would hide the
  * break from every consumer's version range.
@@ -120,16 +134,16 @@ export function assertReleaseCarriesBreakingChanges(
 
 /**
  * The bump the commits themselves call for: a break lands in the break slot,
- * a feature in the minor, anything else in the patch. This is what `--auto`
- * uses, so the version number is a function of what changed rather than of
- * whichever flag the release script was written with.
+ * a feature in the feature slot, anything else in the patch. This is what
+ * `--auto` uses, so the version number is a function of what changed rather
+ * than of whichever flag the release script was written with.
  */
 export function deriveBump(
   commits: readonly ParsedCommit[],
   currentVersion: string,
 ): BumpType {
   if (findBreakingCommits(commits).length > 0) return breakingBumpSlot(currentVersion);
-  if (commits.some((c) => c.type === "feature")) return "minor";
+  if (commits.some((c) => c.type === "feature")) return featureBumpSlot(currentVersion);
   return "patch";
 }
 

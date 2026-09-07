@@ -11,8 +11,10 @@ Options:
   --patch              Bump patch version (x.y.Z)
   --minor              Bump minor version (x.Y.0)
   --major              Bump major version (X.0.0)
-  --auto               Derive the bump per package from its commits:
-                       breaking -> the break slot, feat -> minor, else patch
+  --auto               Derive the bump per package from its commits: breaking
+                       and feat each take their slot for the line, else patch.
+                       On 0.x the minor is the break slot, so a feat takes the
+                       patch there; on 1.x+ a feat takes the minor.
   --all                Update all packages (monorepo)
   --changed            Update only changed packages (monorepo)
   --no-commit          Do not commit the version bump and changelog

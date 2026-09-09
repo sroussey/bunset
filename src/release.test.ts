@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -22,6 +22,8 @@ interface RepoSpec {
   /** Commits applied after the tag: subject plus the files each one writes. */
   commits: { message: string; files?: Record<string, string> }[];
   tag: string;
+  /** Extra .bunset.toml lines, for the defaults a run has to override. */
+  config?: string;
 }
 
 async function git(cwd: string, ...args: string[]): Promise<void> {
@@ -34,14 +36,15 @@ let counter = 0;
 
 async function makeRepo(spec: RepoSpec): Promise<string> {
   const dir = join(root, `repo-${counter++}`);
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "package.json"), JSON.stringify(spec.root, null, 2));
+  await Bun.write(join(dir, "package.json"), JSON.stringify(spec.root, null, 2));
   // Never commit or tag from a test: the assertions only need the plan.
-  await writeFile(join(dir, ".bunset.toml"), "commit = false\ntag = false\n");
+  await Bun.write(
+    join(dir, ".bunset.toml"),
+    "commit = false\ntag = false\n" + (spec.config ?? ""),
+  );
 
   for (const [name, manifest] of Object.entries(spec.packages ?? {})) {
-    await mkdir(join(dir, "packages", name), { recursive: true });
-    await writeFile(
+    await Bun.write(
       join(dir, "packages", name, "package.json"),
       JSON.stringify(manifest, null, 2),
     );
@@ -50,14 +53,19 @@ async function makeRepo(spec: RepoSpec): Promise<string> {
   await git(dir, "init", "-q", ".");
   await git(dir, "config", "user.email", "test@example.com");
   await git(dir, "config", "user.name", "test");
+  // The repo is throwaway, but git config is not: a machine that signs commits
+  // or points core.hooksPath at a shared directory would fail every commit here
+  // for reasons that have nothing to do with what is being tested.
+  await git(dir, "config", "commit.gpgsign", "false");
+  await git(dir, "config", "tag.gpgsign", "false");
+  await git(dir, "config", "core.hooksPath", join(dir, ".git", "no-hooks"));
   await git(dir, "add", "-A");
   await git(dir, "commit", "-qm", "chore: init");
   await git(dir, "tag", spec.tag);
 
   for (const commit of spec.commits) {
     for (const [path, contents] of Object.entries(commit.files ?? {})) {
-      await mkdir(join(dir, path, ".."), { recursive: true }).catch(() => {});
-      await writeFile(join(dir, path), contents);
+      await Bun.write(join(dir, path), contents);
     }
     await git(dir, "add", "-A");
     await git(dir, "commit", "-qm", commit.message, "--allow-empty");
@@ -175,6 +183,64 @@ describe("private packages under --changed", () => {
   }, 20_000);
 });
 
+describe("a break inside a package the release skipped", () => {
+  test("is not treated as a break that landed nowhere", async () => {
+    // The private package is dropped from the release, but its commit did land
+    // in a package directory. Counting it as repo-wide would put someone else's
+    // break in pub's changelog and force a major nobody asked for.
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: {
+        pub: { name: "pub", version: "1.4.0" },
+        priv: { name: "priv", version: "1.4.0", private: true },
+      },
+      tag: "v1.4.0",
+      commits: [
+        { message: "feat!: break the private app", files: { "packages/priv/f.js": "x" } },
+        { message: "fix: small pub fix", files: { "packages/pub/g.js": "y" } },
+      ],
+    });
+
+    const { code, out } = await run(dir, "--auto", "--all");
+    expect(code).toBe(0);
+    expect(out).toContain("pub: 1.4.0 → 1.4.1");
+    expect(out).not.toContain("break the private app");
+  }, 20_000);
+});
+
+describe("a private workspace root that is also a workspace member", () => {
+  test("is not versioned through the root path after being skipped", async () => {
+    const dir = await makeRepo({
+      root: { name: "root-pkg", version: "1.4.0", private: true, workspaces: [".", "packages/*"] },
+      packages: { a: { name: "pkg-a", version: "1.4.0" } },
+      tag: "v1.4.0",
+      commits: [{ message: "feat: only pkg-a", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--auto", "--all");
+    expect(code).toBe(0);
+    expect(out).toContain('root-pkg: "private": true, skipping');
+    expect(out).not.toContain("(workspace root)");
+  }, 20_000);
+});
+
+describe("a publishable workspace root", () => {
+  test("is gated against breaking changes like any released package", async () => {
+    // Every package escapes its own caret range on the shared line, so nothing
+    // in plans refuses this — but the root moves 2.0.0 → 2.0.1 and does not.
+    const dir = await makeRepo({
+      root: { name: "root-lib", version: "2.0.0", workspaces: ["packages/*"] },
+      packages: { a: { name: "pkg-a", version: "0.5.0" } },
+      tag: "v2.0.0",
+      commits: [{ message: "feat!: break the root API", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--all");
+    expect(code).toBe(1);
+    expect(out).toContain("root-lib: Breaking changes found");
+  }, 20_000);
+});
+
 describe("a shared version line spanning different majors", () => {
   test("does not refuse a break the landing version plainly carries", async () => {
     // pkg-b at 0.5.0 is set to 2.0.1 by a release that calls itself a patch;
@@ -192,5 +258,62 @@ describe("a shared version line spanning different majors", () => {
     const { code, out } = await run(dir, "--patch", "--all");
     expect(code).toBe(0);
     expect(out).toContain("pkg-b: 0.5.0 → 2.0.1");
+  }, 20_000);
+});
+
+describe("a config default a run cannot override", () => {
+  test("--no-include-private turns off include-private = true", async () => {
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: {
+        a: { name: "pkg-a", version: "1.4.0" },
+        b: { name: "pkg-b", version: "1.4.0", private: true },
+      },
+      tag: "v1.4.0",
+      config: "include-private = true\n",
+      commits: [{ message: "fix: something", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--all", "--no-include-private");
+    expect(out).toContain('pkg-b: "private": true, skipping');
+    expect(out).not.toContain("pkg-b: 1.4.0 → 1.4.1");
+    expect(code).toBe(0);
+  }, 20_000);
+
+  test("--no-skip-unchanged turns off skip-unchanged = true", async () => {
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: {
+        a: { name: "pkg-a", version: "1.4.0" },
+        b: { name: "pkg-b", version: "1.4.0" },
+      },
+      tag: "v1.4.0",
+      config: "skip-unchanged = true\n",
+      commits: [{ message: "fix: only in a", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--all", "--no-skip-unchanged");
+    expect(out).toContain("pkg-b: 1.4.0 → 1.4.1");
+    expect(out).not.toContain("pkg-b: no matching commits");
+    expect(code).toBe(0);
+  }, 20_000);
+});
+
+describe("options that contradict each other", () => {
+  test("are reported even when there is nothing to release", async () => {
+    // A lockstep config that can never produce a release said nothing until a
+    // release with commits behind it came along to say it.
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: { a: { name: "pkg-a", version: "1.4.0" } },
+      tag: "v1.4.0",
+      commits: [],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--changed", "--lockstep");
+    expect(out).toContain("lockstep is set");
+    expect(out).toContain("--changed");
+    expect(out).not.toContain("No commits found since last tag");
+    expect(code).toBe(1);
   }, 20_000);
 });

@@ -35,8 +35,8 @@ bunx bunset [options]
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
 | `--lockstep` | Keep every workspace package on one version, and refuse anything that would break that |
-| `--include-private` | Version private packages alongside published ones (skipped by default) |
-| `--skip-unchanged` | Skip packages with no matching commits, even under shared tags |
+| `--include-private`, `--no-include-private` | Version private packages alongside published ones (skipped by default) |
+| `--skip-unchanged`, `--no-skip-unchanged` | Skip packages with no matching commits, even under shared tags |
 | `--no-surface-check` | Do not diff each `package.json` against the last tag |
 | `--push` | Push the release commit and tags to the remote |
 | `--release` | Create a GitHub release per tag with the changelog entry as the release notes (requires `--push` and the `gh` CLI) |
@@ -220,6 +220,7 @@ release = false                         # create GitHub release per tag (default
 dry-run = false                         # preview without writing
 debug = false                           # detailed reasoning (implies dry-run)
 filter-by-package = true                # per-package filtering (monorepo)
+lockstep = false                        # keep every package on one version
 include-private = false                 # version "private": true packages
 skip-unchanged = false                  # skip packages with no matching commits
 surface-check = true                    # diff each manifest against the last tag

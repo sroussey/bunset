@@ -68,11 +68,10 @@ export function breakingBumpSlot(currentVersion: string): BumpType {
  * escapes `^0.5.0`.
  */
 export function escapesCaretRange(from: string, to: string): boolean {
-  const [fromMajor, fromMinor] = parseSemver(from);
+  const [fromMajor, fromMinor, fromPatch] = parseSemver(from);
   const [toMajor, toMinor, toPatch] = parseSemver(to);
   if (fromMajor > 0) return toMajor > fromMajor;
   if (fromMinor > 0) return toMajor > 0 || toMinor > fromMinor;
-  const [, , fromPatch] = parseSemver(from);
   return toMajor > 0 || toMinor > 0 || toPatch !== fromPatch;
 }
 
@@ -115,17 +114,22 @@ export function assertBumpAllowsBreakingChanges(
  * The same rule stated against the versions a release will actually write,
  * rather than against the name of the bump. Use this wherever the resulting
  * version is known: it is what a consumer's range actually sees.
+ *
+ * `bump` is the bump that produced `toVersion`. The message reads off the
+ * versions, so it needs no naming; the error carries it for a caller that
+ * wants to report what was asked for.
  */
 export function assertReleaseCarriesBreakingChanges(
   commits: readonly ParsedCommit[],
   fromVersion: string,
   toVersion: string,
+  bump: BumpType,
 ): void {
   if (escapesCaretRange(fromVersion, toVersion)) return;
   const breaking = findBreakingCommits(commits);
   if (breaking.length === 0) return;
   throw new BreakingChangeBumpError(
-    "patch",
+    bump,
     breaking,
     breakingBumpSlot(fromVersion),
     { from: fromVersion, to: toVersion },
@@ -145,6 +149,21 @@ export function deriveBump(
   if (findBreakingCommits(commits).length > 0) return breakingBumpSlot(currentVersion);
   if (commits.some((c) => c.type === "feature")) return featureBumpSlot(currentVersion);
   return "patch";
+}
+
+/** Compares two versions; positive when `a` is the higher of the two. */
+export function compareSemver(a: string, b: string): number {
+  const left = parseSemver(a);
+  const right = parseSemver(b);
+  for (let i = 0; i < 3; i++) {
+    if (left[i]! !== right[i]!) return left[i]! - right[i]!;
+  }
+  return 0;
+}
+
+/** The highest of a set of versions, or "0.0.0" when there are none. */
+export function maxSemver(versions: readonly string[]): string {
+  return versions.reduce((max, v) => (compareSemver(v, max) > 0 ? v : max), "0.0.0");
 }
 
 export function parseSemver(version: string): [number, number, number] {

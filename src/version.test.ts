@@ -280,21 +280,21 @@ describe("assertReleaseCarriesBreakingChanges", () => {
   const plain = parseCommit("d4e5f6a7", "feat: add a flag");
 
   test("refuses when the landing version stays inside the old caret range", () => {
-    expect(() => assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1")).toThrow(
+    expect(() => assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1", "patch")).toThrow(
       BreakingChangeBumpError,
     );
   });
 
   test("allows a jump that leaves the range, whatever the bump was called", () => {
     expect(() =>
-      assertReleaseCarriesBreakingChanges([breaking], "0.5.0", "2.0.1"),
+      assertReleaseCarriesBreakingChanges([breaking], "0.5.0", "2.0.1", "patch"),
     ).not.toThrow();
   });
 
   test("says which versions it compared", () => {
     let message = "";
     try {
-      assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1");
+      assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.4.1", "patch");
     } catch (err) {
       message = (err as Error).message;
     }
@@ -302,7 +302,20 @@ describe("assertReleaseCarriesBreakingChanges", () => {
     expect(message).toContain("^1.4.0");
   });
 
+  test("carries the bump that was asked for, not a hardcoded patch", () => {
+    // The message reads off the versions, so only this field says what the
+    // run requested — a caller reporting "minor" as "patch" misnames it.
+    let error: BreakingChangeBumpError | null = null;
+    try {
+      assertReleaseCarriesBreakingChanges([breaking], "1.4.0", "1.5.0", "minor");
+    } catch (err) {
+      error = err as BreakingChangeBumpError;
+    }
+    expect(error).toBeInstanceOf(BreakingChangeBumpError);
+    expect(error!.bump).toBe("minor");
+  });
+
   test("nothing breaking, nothing to refuse", () => {
-    expect(() => assertReleaseCarriesBreakingChanges([plain], "1.4.0", "1.4.1")).not.toThrow();
+    expect(() => assertReleaseCarriesBreakingChanges([plain], "1.4.0", "1.4.1", "minor")).not.toThrow();
   });
 });

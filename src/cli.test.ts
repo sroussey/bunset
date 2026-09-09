@@ -23,4 +23,10 @@ describe("flag", () => {
     expect(flag({ "no-filter-by-package": true }, "filter-by-package")).toBe(false);
     expect(flag({ "no-surface-check": true }, "surface-check")).toBe(false);
   });
+
+  test("covers the flags a config can turn on, so a run can turn them off", () => {
+    // A `true` in .bunset.toml is only a default if some spelling overrides it.
+    expect(flag({ "no-include-private": true }, "include-private")).toBe(false);
+    expect(flag({ "no-skip-unchanged": true }, "skip-unchanged")).toBe(false);
+  });
 });

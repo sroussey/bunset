@@ -29,10 +29,8 @@ import {
 } from "./workspace.ts";
 import {
   bumpVersion,
-  parseSemver,
-  updatePackageVersion,
+  maxSemver,
   setPackageVersion,
-  assertBumpAllowsBreakingChanges,
   assertReleaseCarriesBreakingChanges,
   escapesCaretRange,
   findBreakingCommits,
@@ -71,6 +69,33 @@ if (dbg) {
   console.log("");
 }
 
+// Options that contradict each other, checked before any of the work below.
+// These say the run can never do what was asked whatever the repository holds,
+// so reporting them behind "nothing to do" leaves a config that can never
+// release unreported until the next release that has something to say.
+if (options.lockstep) {
+  const violations = findLockstepViolations(options);
+  if (violations.length > 0) {
+    console.error(describeLockstepViolations(violations));
+    process.exit(1);
+  }
+}
+
+if (options.release && !options.push) {
+  console.error("--release requires --push (the tag must be on the remote).");
+  process.exit(1);
+}
+
+if (options.release && !options.tag) {
+  console.error("--release requires tagging to be enabled.");
+  process.exit(1);
+}
+
+if (options.release && !options.commit) {
+  console.error("--release requires --commit (tag/push/release run inside the commit step).");
+  process.exit(1);
+}
+
 const allPackages = await getAllPackages(cwd);
 const lastTag = await getLastTag(cwd);
 const rawCommits = await getCommitsSince(cwd, lastTag);
@@ -94,29 +119,6 @@ debug(`raw commits since tag: ${rawCommits.length}`);
 
 if (rawCommits.length === 0) {
   console.error("No commits found since last tag. Nothing to do.");
-  process.exit(1);
-}
-
-if (options.lockstep) {
-  const violations = findLockstepViolations(options);
-  if (violations.length > 0) {
-    console.error(describeLockstepViolations(violations));
-    process.exit(1);
-  }
-}
-
-if (options.release && !options.push) {
-  console.error("--release requires --push (the tag must be on the remote).");
-  process.exit(1);
-}
-
-if (options.release && !options.tag) {
-  console.error("--release requires tagging to be enabled.");
-  process.exit(1);
-}
-
-if (options.release && !options.commit) {
-  console.error("--release requires --commit (tag/push/release run inside the commit step).");
   process.exit(1);
 }
 
@@ -222,22 +224,39 @@ function evidenceBump(plan: PackagePlan, version: string): BumpType {
 // that: always under per-package tags, and under shared tags on request.
 const skipUnchanged = options.perPackageTags || options.skipUnchanged;
 
-// Each package's manifest at the last tag, fetched once and read by both the
-// surface diff and the changelog's dependency section, in parallel rather than
-// one `git show` spawn after another.
+// Every package's commits, filtered once. Computed over the whole workspace
+// rather than the release subset: a commit that landed in a package this
+// release skipped did land somewhere, and must not be mistaken below for one
+// that landed nowhere.
+const commitsByPackage = new Map<string, ParsedCommit[]>();
+for (const pkg of allPackages) {
+  commitsByPackage.set(pkg.packageJsonPath, commitsForPackage(pkg));
+}
+const claimedHashes = new Set<string>();
+for (const list of commitsByPackage.values()) {
+  for (const c of list) claimedHashes.add(c.hash);
+}
+
+// Both manifests every package needs — the one at the last tag and the one on
+// disk now — read by the surface diff and the changelog's dependency section.
+// Fetched together rather than one `git show` spawn and one file read after
+// another.
 const manifestsAtLastTag = new Map<string, Record<string, unknown>>();
+const manifestsNow = new Map<string, Record<string, unknown>>();
 await Promise.all(
   packages.map(async (pkg) => {
-    const old = await readPackageJsonAtRef(cwd, pkg.packageJsonPath, lastTag);
+    const [old, current] = await Promise.all([
+      readPackageJsonAtRef(cwd, pkg.packageJsonPath, lastTag),
+      Bun.file(pkg.packageJsonPath).json() as Promise<Record<string, unknown>>,
+    ]);
     if (old) manifestsAtLastTag.set(pkg.packageJsonPath, old);
+    manifestsNow.set(pkg.packageJsonPath, current);
   }),
 );
 
 const plans: PackagePlan[] = [];
-const claimedHashes = new Set<string>();
 for (const pkg of packages) {
-  const commits = commitsForPackage(pkg);
-  for (const c of commits) claimedHashes.add(c.hash);
+  const commits = commitsByPackage.get(pkg.packageJsonPath) ?? commitsForPackage(pkg);
   const groups = groupsForPackage(commits);
   const hasChanges = packageHasChanges(groups);
 
@@ -265,7 +284,7 @@ for (const pkg of packages) {
   }
 
   const oldPkg = manifestsAtLastTag.get(pkg.packageJsonPath) ?? null;
-  const manifest = (await Bun.file(pkg.packageJsonPath).json()) as Record<string, unknown>;
+  const manifest = manifestsNow.get(pkg.packageJsonPath)!;
   let surfaceChanges: SurfaceChange[] = [];
   if (options.surfaceCheck && oldPkg) {
     surfaceChanges = diffManifestSurface(oldPkg, manifest);
@@ -284,10 +303,11 @@ if (plans.length === 0) {
 }
 
 /**
- * Breaking commits that touched no package directory — a root tsconfig, a CI
- * workflow, the workspace manifest. Per-package filtering drops them from every
- * package's list, so without this they would be gated by nothing and ship as a
- * patch. A repo-wide break belongs to every package being released.
+ * Breaking commits that touched no package directory in the workspace — a root
+ * tsconfig, a CI workflow, the workspace manifest. Per-package filtering drops
+ * them from every package's list, so without this they would be gated by
+ * nothing and ship as a patch. A repo-wide break belongs to every package being
+ * released.
  */
 const unclaimedBreaking = findBreakingCommits(parsed).filter((c) => !claimedHashes.has(c.hash));
 if (unclaimedBreaking.length > 0) {
@@ -301,12 +321,18 @@ function releaseCommits(plan: PackagePlan): ParsedCommit[] {
 
 // When scope is "all" in a workspace, also update the workspace root's package.json
 const rootPackageJsonPath = join(cwd, "package.json");
-const updateRoot =
-  isWs &&
-  options.scope === "all" &&
-  !packages.some((p) => p.packageJsonPath === rootPackageJsonPath);
-const rootCurrentVersion = updateRoot
-  ? ((await Bun.file(rootPackageJsonPath).json()).version ?? "0.0.0")
+// A root that is itself a workspace member is versioned as a package, whether
+// it was released or deliberately skipped — announcing a skip and then bumping
+// it through this path would contradict what was printed.
+const rootIsOwnPackage = [...packages, ...selected.skipped].some(
+  (p) => p.packageJsonPath === rootPackageJsonPath,
+);
+const updateRoot = isWs && options.scope === "all" && !rootIsOwnPackage;
+const rootManifest = updateRoot
+  ? ((await Bun.file(rootPackageJsonPath).json()) as Record<string, unknown>)
+  : null;
+const rootCurrentVersion = rootManifest
+  ? ((rootManifest.version as string) ?? "0.0.0")
   : null;
 debug(`update root package.json: ${updateRoot}${updateRoot ? ` (current: ${rootCurrentVersion})` : ""}`);
 
@@ -316,14 +342,7 @@ let sharedBump: BumpType | null = null;
 if (!options.perPackageTags && (plans.length > 1 || updateRoot)) {
   const candidateVersions = plans.map((p) => p.pkg.version ?? "0.0.0");
   if (updateRoot && rootCurrentVersion) candidateVersions.push(rootCurrentVersion);
-  const maxVersion = candidateVersions.reduce((max, v) => {
-    const [mj1, mn1, p1] = parseSemver(max);
-    const [mj2, mn2, p2] = parseSemver(v);
-    if (mj2 > mj1) return v;
-    if (mj2 === mj1 && mn2 > mn1) return v;
-    if (mj2 === mj1 && mn2 === mn1 && p2 > p1) return v;
-    return max;
-  }, "0.0.0");
+  const maxVersion = maxSemver(candidateVersions);
   // One version line, so one bump: the strongest any released package calls for.
   sharedBump =
     options.bump === "auto"
@@ -357,6 +376,10 @@ for (const plan of plans) {
 }
 
 const rootBump = plans.map((p) => p.bump).reduce((a, b) => maxBump(a, b), "patch" as BumpType);
+const newRootVersion =
+  rootCurrentVersion !== null
+    ? (targetVersion ?? bumpVersion(rootCurrentVersion, rootBump))
+    : null;
 
 // A declared break must land in a slot a consumer's range does not admit.
 const bumpFailures: string[] = [];
@@ -366,10 +389,26 @@ for (const plan of plans) {
       releaseCommits(plan),
       plan.pkg.version ?? "0.0.0",
       plan.newVersion,
+      plan.bump,
     );
   } catch (err) {
     if (!(err instanceof BreakingChangeBumpError)) throw err;
     bumpFailures.push(`${plan.pkg.name}: ${err.message}`);
+  }
+}
+// The root is released alongside them when it is publishable, and no plan
+// covers it — its commits are the whole repo's, so it is gated against those.
+if (rootManifest && rootManifest.private !== true && rootCurrentVersion && newRootVersion) {
+  try {
+    assertReleaseCarriesBreakingChanges(
+      parsed,
+      rootCurrentVersion,
+      newRootVersion,
+      sharedBump ?? rootBump,
+    );
+  } catch (err) {
+    if (!(err instanceof BreakingChangeBumpError)) throw err;
+    bumpFailures.push(`${(rootManifest.name as string) ?? "(workspace root)"}: ${err.message}`);
   }
 }
 if (bumpFailures.length > 0) {
@@ -411,7 +450,6 @@ if (options.dryRun) {
   const tags: string[] = [];
   const filesToCommit: string[] = [];
   const tagEntries = new Map<string, { pkgName: string; entry: string }[]>();
-  let anyPackageUpdated = false;
 
   for (const plan of plans) {
     const { pkg, groups } = plan;
@@ -419,7 +457,6 @@ if (options.dryRun) {
     const newVersion = plan.newVersion;
     console.log(`${pkg.name}: ${oldVersion} → ${newVersion} (${plan.bump})`);
     filesToCommit.push(pkg.packageJsonPath, `${pkg.path}/CHANGELOG.md`);
-    anyPackageUpdated = true;
 
     const updatedDeps = getUpdatedDependencies(
       manifestsAtLastTag.get(pkg.packageJsonPath) ?? null,
@@ -447,8 +484,7 @@ if (options.dryRun) {
     }
   }
 
-  if (updateRoot && rootCurrentVersion && anyPackageUpdated) {
-    const newRootVersion = targetVersion ?? bumpVersion(rootCurrentVersion, rootBump);
+  if (newRootVersion) {
     console.log(`(workspace root): ${rootCurrentVersion} → ${newRootVersion}`);
     filesToCommit.push(rootPackageJsonPath);
   }
@@ -498,7 +534,6 @@ if (options.dryRun) {
 const tags: string[] = [];
 const changedFiles: string[] = [];
 const tagEntries = new Map<string, { pkgName: string; entry: string }[]>();
-let anyPackageUpdated = false;
 
 for (const plan of plans) {
   const { pkg, groups } = plan;
@@ -509,7 +544,6 @@ for (const plan of plans) {
   );
   changedFiles.push(pkg.packageJsonPath);
   console.log(`${pkg.name}: ${oldVersion} → ${newVersion} (${plan.bump})`);
-  anyPackageUpdated = true;
 
   const updatedDeps = getUpdatedDependencies(
     manifestsAtLastTag.get(pkg.packageJsonPath) ?? null,
@@ -536,20 +570,16 @@ for (const plan of plans) {
   }
 }
 
-if (updateRoot && anyPackageUpdated) {
-  const { oldVersion, newVersion } = targetVersion
-    ? await setPackageVersion(rootPackageJsonPath, targetVersion)
-    : await updatePackageVersion(rootPackageJsonPath, rootBump);
+if (newRootVersion) {
+  const { oldVersion, newVersion } = await setPackageVersion(
+    rootPackageJsonPath,
+    newRootVersion,
+  );
   changedFiles.push(rootPackageJsonPath);
   console.log(`(workspace root): ${oldVersion} → ${newVersion}`);
 }
 
 const uniqueTags = [...new Set(tags)];
-
-if (changedFiles.length === 0) {
-  console.error("No packages were updated. Nothing to do.");
-  process.exit(1);
-}
 
 // Update lockfile after package.json versions changed
 await $`bun install --lockfile-only`.cwd(cwd).quiet();

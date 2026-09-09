@@ -193,4 +193,48 @@ describe("regressions", () => {
     expect(changes[0]!.detail).toContain("unconditionally");
     expect(changes[0]!.detail).toContain("import");
   });
+
+  test("moving a condition under a nested one, beside a default, is a broadening", () => {
+    // "default" matches whatever the resolver asked for, so an "import"-only
+    // export that gains a node branch beside a default still resolves for
+    // everyone it used to — and for everyone it did not.
+    expect(
+      diffManifestSurface(
+        { name: "p", exports: { ".": { import: "./x.js" } } },
+        {
+          name: "p",
+          exports: { ".": { node: { import: "./node.js" } , default: "./x.js" } },
+        },
+      ),
+    ).toEqual([]);
+  });
+
+  test("the same move without a default is a narrowing", () => {
+    // Nothing catches a resolver that is not node, so "import" alone no
+    // longer resolves.
+    const changes = diffManifestSurface(
+      { name: "p", exports: { ".": { import: "./x.js" } } },
+      { name: "p", exports: { ".": { node: { import: "./node.js" } } } },
+    );
+    expect(changes.map((c) => c.kind)).toEqual(["condition-removed"]);
+    expect(changes[0]!.detail).toContain('"import" condition');
+  });
+
+  test("a lone default resolves unconditionally", () => {
+    expect(
+      diffManifestSurface(
+        { name: "p", exports: { ".": "./a.js" } },
+        { name: "p", exports: { ".": { default: "./a.js" } } },
+      ),
+    ).toEqual([]);
+  });
+
+  test("a condition kept at the same depth beside a new sibling is unchanged", () => {
+    expect(
+      diffManifestSurface(
+        { name: "p", exports: { ".": { import: "./x.js" } } },
+        { name: "p", exports: { ".": { require: "./x.cjs", import: "./x.js" } } },
+      ),
+    ).toEqual([]);
+  });
 });

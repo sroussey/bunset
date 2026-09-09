@@ -69,6 +69,33 @@ if (dbg) {
   console.log("");
 }
 
+// Options that contradict each other, checked before any of the work below.
+// These say the run can never do what was asked whatever the repository holds,
+// so reporting them behind "nothing to do" leaves a config that can never
+// release unreported until the next release that has something to say.
+if (options.lockstep) {
+  const violations = findLockstepViolations(options);
+  if (violations.length > 0) {
+    console.error(describeLockstepViolations(violations));
+    process.exit(1);
+  }
+}
+
+if (options.release && !options.push) {
+  console.error("--release requires --push (the tag must be on the remote).");
+  process.exit(1);
+}
+
+if (options.release && !options.tag) {
+  console.error("--release requires tagging to be enabled.");
+  process.exit(1);
+}
+
+if (options.release && !options.commit) {
+  console.error("--release requires --commit (tag/push/release run inside the commit step).");
+  process.exit(1);
+}
+
 const allPackages = await getAllPackages(cwd);
 const lastTag = await getLastTag(cwd);
 const rawCommits = await getCommitsSince(cwd, lastTag);
@@ -92,29 +119,6 @@ debug(`raw commits since tag: ${rawCommits.length}`);
 
 if (rawCommits.length === 0) {
   console.error("No commits found since last tag. Nothing to do.");
-  process.exit(1);
-}
-
-if (options.lockstep) {
-  const violations = findLockstepViolations(options);
-  if (violations.length > 0) {
-    console.error(describeLockstepViolations(violations));
-    process.exit(1);
-  }
-}
-
-if (options.release && !options.push) {
-  console.error("--release requires --push (the tag must be on the remote).");
-  process.exit(1);
-}
-
-if (options.release && !options.tag) {
-  console.error("--release requires tagging to be enabled.");
-  process.exit(1);
-}
-
-if (options.release && !options.commit) {
-  console.error("--release requires --commit (tag/push/release run inside the commit step).");
   process.exit(1);
 }
 
@@ -385,6 +389,7 @@ for (const plan of plans) {
       releaseCommits(plan),
       plan.pkg.version ?? "0.0.0",
       plan.newVersion,
+      plan.bump,
     );
   } catch (err) {
     if (!(err instanceof BreakingChangeBumpError)) throw err;
@@ -395,7 +400,12 @@ for (const plan of plans) {
 // covers it — its commits are the whole repo's, so it is gated against those.
 if (rootManifest && rootManifest.private !== true && rootCurrentVersion && newRootVersion) {
   try {
-    assertReleaseCarriesBreakingChanges(parsed, rootCurrentVersion, newRootVersion);
+    assertReleaseCarriesBreakingChanges(
+      parsed,
+      rootCurrentVersion,
+      newRootVersion,
+      sharedBump ?? rootBump,
+    );
   } catch (err) {
     if (!(err instanceof BreakingChangeBumpError)) throw err;
     bumpFailures.push(`${(rootManifest.name as string) ?? "(workspace root)"}: ${err.message}`);

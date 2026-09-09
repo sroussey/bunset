@@ -36,6 +36,31 @@ function exportKeys(exports: unknown): Set<string> {
   return keys;
 }
 
+/** A flat export key split back into its subpath and its condition path. */
+function splitExportKey(key: string): { subpath: string; condition: string | undefined } {
+  const split = key.indexOf(":");
+  if (split === -1) return { subpath: key, condition: undefined };
+  return { subpath: key.slice(0, split), condition: key.slice(split + 1) };
+}
+
+/**
+ * The conditions a resolver must have active to reach a flat key's target.
+ * `default` matches whatever the resolver asked for, so it requires nothing —
+ * which is what makes a `default` branch cover the conditions beside it.
+ */
+function requiredConditions(condition: string | undefined): string[] {
+  if (condition === undefined) return [];
+  return condition.split(".").filter((c) => c !== "default");
+}
+
+/**
+ * Whether a target asking for `candidate` resolves everywhere one asking for
+ * `required` did. Fewer conditions is broader, so a subset still covers.
+ */
+function coversAtLeast(candidate: readonly string[], required: readonly string[]): boolean {
+  return candidate.every((c) => required.includes(c));
+}
+
 function binKeys(bin: unknown, packageName: string): Set<string> {
   // A string `bin` installs under the package's unscoped name, so "@scope/p"
   // and { p: ... } name the same binary and must compare equal.
@@ -101,41 +126,48 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
   } else {
     const oldExports = exportKeys(oldPkg.exports);
     const newExports = exportKeys(newPkg.exports);
+
+    // Every condition path the new manifest offers, grouped by subpath, so one
+    // old key can be weighed against all of them at once.
+    const newBySubpath = new Map<string, (string | undefined)[]>();
+    for (const key of newExports) {
+      const { subpath, condition } = splitExportKey(key);
+      const offered = newBySubpath.get(subpath) ?? [];
+      offered.push(condition);
+      newBySubpath.set(subpath, offered);
+    }
+
     for (const key of oldExports) {
       if (newExports.has(key)) continue;
 
-      const split = key.indexOf(":");
-      const subpath = split === -1 ? key : key.slice(0, split);
-      const condition = split === -1 ? undefined : key.slice(split + 1);
+      const { subpath, condition } = splitExportKey(key);
+      const offered = newBySubpath.get(subpath) ?? [];
+      const required = requiredConditions(condition);
 
-      // A bare target under the subpath resolves for every condition, so it
-      // covers whatever condition used to be spelled out. Collapsing
-      // { types, import } down to one string broadens the export; it is not a
-      // removal, and reporting it as one refuses a release that broke nothing.
-      const newIsUnconditional = newExports.has(subpath);
-      const newConditions = [...newExports].filter((k) => k.startsWith(`${subpath}:`));
+      // Still covered when some new target asks for no more than this key
+      // already did: a bare target covers every condition, and moving `import`
+      // under `node` beside a `default` broadens the export rather than
+      // narrowing it. Reporting either as a removal refuses a release that
+      // broke nothing.
+      if (offered.some((c) => coversAtLeast(requiredConditions(c), required))) continue;
 
-      if (condition !== undefined) {
-        if (newIsUnconditional) continue;
-        changes.push(
-          newConditions.length === 0
-            ? { kind: "export-removed", detail: `exports["${subpath}"] was removed` }
-            : {
-                kind: "condition-removed",
-                detail: `exports["${subpath}"] no longer resolves the "${condition}" condition`,
-              },
-        );
-      } else if (newConditions.length > 0) {
+      if (offered.length === 0) {
+        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
+      } else if (condition !== undefined) {
+        changes.push({
+          kind: "condition-removed",
+          detail: `exports["${subpath}"] no longer resolves the "${condition}" condition`,
+        });
+      } else {
         // The reverse narrowing: what resolved everywhere now resolves only
         // under named conditions, so any other resolver stops finding it.
+        const named = offered.filter((c): c is string => c !== undefined);
         changes.push({
           kind: "condition-removed",
           detail:
             `exports["${subpath}"] no longer resolves unconditionally ` +
-            `(only under ${newConditions.map((k) => `"${k.slice(subpath.length + 1)}"`).join(", ")})`,
+            `(only under ${named.map((c) => `"${c}"`).join(", ")})`,
         });
-      } else {
-        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
       }
     }
   }

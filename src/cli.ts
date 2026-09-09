@@ -32,8 +32,10 @@ Options:
   --lockstep           Keep every workspace package on one version. Refuses any
                        option that would leave a package behind, and versions
                        private packages so none of them falls out of the line.
-  --include-private    Version packages marked "private": true (skipped by default)
-  --skip-unchanged     Skip packages with no matching commits even under shared
+  --include-private, --no-include-private
+                       Version packages marked "private": true (skipped by default)
+  --skip-unchanged, --no-skip-unchanged
+                       Skip packages with no matching commits even under shared
                        tags (already implied by --per-package-tags)
   --no-surface-check   Do not compare each package.json against the last tag for
                        breaks no commit message declared
@@ -129,8 +131,10 @@ export function resolveOptions(
         "no-filter-by-package": { type: "boolean" },
         lockstep: { type: "boolean" },
         "no-lockstep": { type: "boolean" },
-        "include-private": { type: "boolean", default: false },
-        "skip-unchanged": { type: "boolean", default: false },
+        "include-private": { type: "boolean" },
+        "no-include-private": { type: "boolean" },
+        "skip-unchanged": { type: "boolean" },
+        "no-skip-unchanged": { type: "boolean" },
         "surface-check": { type: "boolean" },
         "no-surface-check": { type: "boolean" },
         "tag-prefix": { type: "string" },
@@ -176,12 +180,8 @@ export function resolveOptions(
 
   const filterByPackage = flag(values, "filter-by-package") ?? config.filterByPackage ?? true;
 
-  const includePrivate = values["include-private"]
-    ? true
-    : (config.includePrivate ?? false);
-  const skipUnchanged = values["skip-unchanged"]
-    ? true
-    : (config.skipUnchanged ?? false);
+  const includePrivate = flag(values, "include-private") ?? config.includePrivate ?? false;
+  const skipUnchanged = flag(values, "skip-unchanged") ?? config.skipUnchanged ?? false;
   const surfaceCheck = flag(values, "surface-check") ?? config.surfaceCheck ?? true;
   const lockstep = flag(values, "lockstep") ?? config.lockstep ?? false;
 

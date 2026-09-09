@@ -114,17 +114,22 @@ export function assertBumpAllowsBreakingChanges(
  * The same rule stated against the versions a release will actually write,
  * rather than against the name of the bump. Use this wherever the resulting
  * version is known: it is what a consumer's range actually sees.
+ *
+ * `bump` is the bump that produced `toVersion`. The message reads off the
+ * versions, so it needs no naming; the error carries it for a caller that
+ * wants to report what was asked for.
  */
 export function assertReleaseCarriesBreakingChanges(
   commits: readonly ParsedCommit[],
   fromVersion: string,
   toVersion: string,
+  bump: BumpType,
 ): void {
   if (escapesCaretRange(fromVersion, toVersion)) return;
   const breaking = findBreakingCommits(commits);
   if (breaking.length === 0) return;
   throw new BreakingChangeBumpError(
-    "patch",
+    bump,
     breaking,
     breakingBumpSlot(fromVersion),
     { from: fromVersion, to: toVersion },

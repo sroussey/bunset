@@ -35,8 +35,8 @@ bunx bunset [options]
 | `--debug` | Show detailed inclusion/exclusion reasoning (implies `--dry-run`) |
 | `--no-filter-by-package` | Include all commits in every package changelog (monorepo) |
 | `--lockstep` | Keep every workspace package on one version, and refuse anything that would break that |
-| `--include-private` | Version private packages alongside published ones (skipped by default) |
-| `--skip-unchanged` | Skip packages with no matching commits, even under shared tags |
+| `--include-private`, `--no-include-private` | Version private packages alongside published ones (skipped by default) |
+| `--skip-unchanged`, `--no-skip-unchanged` | Skip packages with no matching commits, even under shared tags |
 | `--no-surface-check` | Do not diff each `package.json` against the last tag |
 | `--push` | Push the release commit and tags to the remote |
 | `--release` | Create a GitHub release per tag with the changelog entry as the release notes (requires `--push` and the `gh` CLI) |

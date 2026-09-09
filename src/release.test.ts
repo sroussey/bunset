@@ -22,6 +22,8 @@ interface RepoSpec {
   /** Commits applied after the tag: subject plus the files each one writes. */
   commits: { message: string; files?: Record<string, string> }[];
   tag: string;
+  /** Extra .bunset.toml lines, for the defaults a run has to override. */
+  config?: string;
 }
 
 async function git(cwd: string, ...args: string[]): Promise<void> {
@@ -36,7 +38,10 @@ async function makeRepo(spec: RepoSpec): Promise<string> {
   const dir = join(root, `repo-${counter++}`);
   await Bun.write(join(dir, "package.json"), JSON.stringify(spec.root, null, 2));
   // Never commit or tag from a test: the assertions only need the plan.
-  await Bun.write(join(dir, ".bunset.toml"), "commit = false\ntag = false\n");
+  await Bun.write(
+    join(dir, ".bunset.toml"),
+    "commit = false\ntag = false\n" + (spec.config ?? ""),
+  );
 
   for (const [name, manifest] of Object.entries(spec.packages ?? {})) {
     await Bun.write(
@@ -253,5 +258,62 @@ describe("a shared version line spanning different majors", () => {
     const { code, out } = await run(dir, "--patch", "--all");
     expect(code).toBe(0);
     expect(out).toContain("pkg-b: 0.5.0 → 2.0.1");
+  }, 20_000);
+});
+
+describe("a config default a run cannot override", () => {
+  test("--no-include-private turns off include-private = true", async () => {
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: {
+        a: { name: "pkg-a", version: "1.4.0" },
+        b: { name: "pkg-b", version: "1.4.0", private: true },
+      },
+      tag: "v1.4.0",
+      config: "include-private = true\n",
+      commits: [{ message: "fix: something", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--all", "--no-include-private");
+    expect(out).toContain('pkg-b: "private": true, skipping');
+    expect(out).not.toContain("pkg-b: 1.4.0 → 1.4.1");
+    expect(code).toBe(0);
+  }, 20_000);
+
+  test("--no-skip-unchanged turns off skip-unchanged = true", async () => {
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: {
+        a: { name: "pkg-a", version: "1.4.0" },
+        b: { name: "pkg-b", version: "1.4.0" },
+      },
+      tag: "v1.4.0",
+      config: "skip-unchanged = true\n",
+      commits: [{ message: "fix: only in a", files: { "packages/a/f.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--all", "--no-skip-unchanged");
+    expect(out).toContain("pkg-b: 1.4.0 → 1.4.1");
+    expect(out).not.toContain("pkg-b: no matching commits");
+    expect(code).toBe(0);
+  }, 20_000);
+});
+
+describe("options that contradict each other", () => {
+  test("are reported even when there is nothing to release", async () => {
+    // A lockstep config that can never produce a release said nothing until a
+    // release with commits behind it came along to say it.
+    const dir = await makeRepo({
+      root: { name: "root", version: "1.4.0", private: true, workspaces: ["packages/*"] },
+      packages: { a: { name: "pkg-a", version: "1.4.0" } },
+      tag: "v1.4.0",
+      commits: [],
+    });
+
+    const { code, out } = await run(dir, "--patch", "--changed", "--lockstep");
+    expect(out).toContain("lockstep is set");
+    expect(out).toContain("--changed");
+    expect(out).not.toContain("No commits found since last tag");
+    expect(code).toBe(1);
   }, 20_000);
 });

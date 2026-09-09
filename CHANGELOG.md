@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+### Bug Fixes
+
+- apply the four findings left unaddressed
+
 ## 1.1.1
 
 ### Bug Fixes

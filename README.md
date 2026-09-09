@@ -220,6 +220,7 @@ release = false                         # create GitHub release per tag (default
 dry-run = false                         # preview without writing
 debug = false                           # detailed reasoning (implies dry-run)
 filter-by-package = true                # per-package filtering (monorepo)
+lockstep = false                        # keep every package on one version
 include-private = false                 # version "private": true packages
 skip-unchanged = false                  # skip packages with no matching commits
 surface-check = true                    # diff each manifest against the last tag

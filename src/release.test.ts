@@ -317,3 +317,46 @@ describe("options that contradict each other", () => {
     expect(code).toBe(1);
   }, 20_000);
 });
+
+describe("a 0.x line under --auto", () => {
+  // The slot rules are pinned per function in version.test.ts; these pin the
+  // number the CLI actually writes, which is what a release is judged on.
+  async function releaseOf(message: string): Promise<{ code: number; out: string }> {
+    const dir = await makeRepo({
+      root: { name: "solo", version: "0.3.2", main: "index.js" },
+      tag: "v0.3.2",
+      commits: [{ message, files: { "index.js": message } }],
+    });
+    return run(dir, "--auto", "--all");
+  }
+
+  test("puts a feature in the patch, where it stays distinct from a break", async () => {
+    const { code, out } = await releaseOf("feat: add a thing");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 0.3.2 → 0.3.3 (patch)");
+  }, 20_000);
+
+  test("puts a fix in the patch", async () => {
+    const { code, out } = await releaseOf("fix: fix a thing");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 0.3.2 → 0.3.3 (patch)");
+  }, 20_000);
+
+  test("puts a break in the minor, which is the slot no caret range admits", async () => {
+    const { code, out } = await releaseOf("feat!: break a thing");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 0.3.2 → 0.4.0 (minor)");
+  }, 20_000);
+
+  test("moves a 0.0.x break to 0.1.0 rather than to 1.0.0", async () => {
+    const dir = await makeRepo({
+      root: { name: "solo", version: "0.0.4", main: "index.js" },
+      tag: "v0.0.4",
+      commits: [{ message: "feat!: break a thing", files: { "index.js": "x" } }],
+    });
+
+    const { code, out } = await run(dir, "--auto", "--all");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 0.0.4 → 0.1.0 (minor)");
+  }, 20_000);
+});

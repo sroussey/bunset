@@ -90,6 +90,21 @@ function isHigher(a: [number, number, number], b: [number, number, number]): boo
   return false;
 }
 
+/**
+ * Whether a raised floor leaves the runtime line the old one admitted, read as a
+ * caret range: `^1.3` → `^1.4` stays on Bun 1, which drops only older releases
+ * of a line consumers already run, while `>=22` → `>=24` drops Node 22 and 23
+ * outright. On a 0.x runtime the minor is the line, as it is for a package.
+ */
+function leavesCaretRange(
+  before: [number, number, number],
+  after: [number, number, number],
+): boolean {
+  if (before[0] > 0) return after[0] > before[0];
+  if (before[1] > 0) return after[0] > 0 || after[1] > before[1];
+  return after[0] > 0 || after[1] > 0 || after[2] > before[2];
+}
+
 function hasEntryPoint(pkg: Manifest): boolean {
   // An explicit `null` is how a manifest spells "this field is gone", so it
   // counts as absent rather than as a field that happens to be present.
@@ -98,8 +113,9 @@ function hasEntryPoint(pkg: Manifest): boolean {
 }
 
 /**
- * Incompatible changes between a package's manifest at the last release tag
- * and its manifest now.
+ * Changes between a package's manifest at the last release tag and its manifest
+ * now that a release has to account for: breaks, and runtime floors raised
+ * within their line.
  *
  * This reads the manifest only — it is not an API diff, so a changed function
  * signature is invisible to it. What it does see is the class of break that
@@ -113,6 +129,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
 
   if (oldPkg.private !== true && newPkg.private === true) {
     changes.push({
+      severity: "breaking",
       kind: "unpublished",
       detail: `"private": true — ${name} was publishable at the last tag and is not now`,
     });
@@ -120,6 +137,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
 
   if (hasEntryPoint(oldPkg) && !hasEntryPoint(newPkg)) {
     changes.push({
+      severity: "breaking",
       kind: "entry-point-removed",
       detail: `no "exports", "main" or "module" — importing ${name} no longer resolves`,
     });
@@ -152,9 +170,12 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
       if (offered.some((c) => coversAtLeast(requiredConditions(c), required))) continue;
 
       if (offered.length === 0) {
-        changes.push({ kind: "export-removed", detail: `exports["${subpath}"] was removed` });
+        changes.push({
+          severity: "breaking",
+          kind: "export-removed", detail: `exports["${subpath}"] was removed` });
       } else if (condition !== undefined) {
         changes.push({
+          severity: "breaking",
           kind: "condition-removed",
           detail: `exports["${subpath}"] no longer resolves the "${condition}" condition`,
         });
@@ -163,6 +184,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
         // under named conditions, so any other resolver stops finding it.
         const named = offered.filter((c): c is string => c !== undefined);
         changes.push({
+          severity: "breaking",
           kind: "condition-removed",
           detail:
             `exports["${subpath}"] no longer resolves unconditionally ` +
@@ -176,7 +198,9 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
   const newBins = binKeys(newPkg.bin, name);
   for (const bin of oldBins) {
     if (!newBins.has(bin)) {
-      changes.push({ kind: "bin-removed", detail: `the "${bin}" binary was removed` });
+      changes.push({
+        severity: "breaking",
+        kind: "bin-removed", detail: `the "${bin}" binary was removed` });
     }
   }
 
@@ -187,6 +211,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
     const previous = oldEngines[engine];
     if (previous === undefined) {
       changes.push({
+        severity: "breaking",
         kind: "engines-added",
         detail: `engines.${engine} is now "${range}" — it was unconstrained at the last tag`,
       });
@@ -196,6 +221,7 @@ export function diffManifestSurface(oldPkg: Manifest, newPkg: Manifest): Surface
     const after = rangeFloor(range);
     if (before && after && isHigher(after, before)) {
       changes.push({
+        severity: leavesCaretRange(before, after) ? "breaking" : "feature",
         kind: "engines-raised",
         detail: `engines.${engine} moved from "${previous}" to "${range}"`,
       });

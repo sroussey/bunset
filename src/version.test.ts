@@ -7,6 +7,7 @@ import {
   breakingBumpSlot,
   featureBumpSlot,
   escapesCaretRange,
+  reachesFeatureSlot,
   assertReleaseCarriesBreakingChanges,
   deriveBump,
   maxBump,
@@ -148,6 +149,19 @@ describe("featureBumpSlot", () => {
     for (const version of ["0.0.1", "0.4.8", "1.2.3", "9.9.9"]) {
       expect(featureBumpSlot(version)).not.toBe(breakingBumpSlot(version));
     }
+  });
+});
+
+describe("reachesFeatureSlot", () => {
+  test("a released line needs the minor or the major to move", () => {
+    expect(reachesFeatureSlot("1.1.2", "1.2.0")).toBe(true);
+    expect(reachesFeatureSlot("1.1.2", "2.0.0")).toBe(true);
+    expect(reachesFeatureSlot("1.1.2", "1.1.3")).toBe(false);
+  });
+
+  test("a 0.x line takes features in the patch, so any move reaches it", () => {
+    expect(reachesFeatureSlot("0.4.8", "0.4.9")).toBe(true);
+    expect(reachesFeatureSlot("0.4.8", "0.4.8")).toBe(false);
   });
 });
 

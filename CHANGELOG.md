@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.0
+
+### Bug Fixes
+
+- read workspaces declared in object form
+
+### Tests
+
+- pin the 0.x --auto slot rule through the CLI
+
+### Chores
+
+- update dependencies in package.json and bun.lock
+
+### Updated Dependencies
+
+- `@types/bun`: ^1.4.4
+
 ## 1.1.2
 
 ### Bug Fixes

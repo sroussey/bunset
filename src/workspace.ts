@@ -2,14 +2,29 @@ import { $ } from "bun";
 import { join } from "node:path";
 import type { PackageInfo } from "./types.ts";
 
+/**
+ * The workspace globs a root manifest declares. `workspaces` is either the
+ * array itself or an object holding it under `packages` — the form Bun needs
+ * once the root also declares a `catalog` beside it, and Yarn's for `nohoist`.
+ */
+export function workspacePatterns(manifest: Record<string, unknown>): string[] {
+  const workspaces = manifest.workspaces;
+  const patterns = Array.isArray(workspaces)
+    ? workspaces
+    : (workspaces as { packages?: unknown } | null | undefined)?.packages;
+  return Array.isArray(patterns)
+    ? patterns.filter((p): p is string => typeof p === "string")
+    : [];
+}
+
 export async function isWorkspace(rootDir: string): Promise<boolean> {
   const pkg = await Bun.file(join(rootDir, "package.json")).json();
-  return Array.isArray(pkg.workspaces) && pkg.workspaces.length > 0;
+  return workspacePatterns(pkg).length > 0;
 }
 
 export async function getAllPackages(rootDir: string): Promise<PackageInfo[]> {
   const rootPkg = await Bun.file(join(rootDir, "package.json")).json();
-  const patterns: string[] = rootPkg.workspaces ?? [];
+  const patterns = workspacePatterns(rootPkg);
 
   if (patterns.length === 0) {
     return [packageInfoFromJson(rootPkg, rootDir)];

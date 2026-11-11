@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { selectVersionablePackages } from "./workspace.ts";
+import { selectVersionablePackages, workspacePatterns } from "./workspace.ts";
 import type { PackageInfo } from "./types.ts";
 
 const pkg = (name: string, isPrivate: boolean): PackageInfo => ({
@@ -71,5 +71,24 @@ describe("selectVersionablePackages", () => {
     const result = selectVersionablePackages([pkg("api", true)], false, workspace);
     expect(names(result.versionable)).toEqual(["api"]);
     expect(result.skipped).toEqual([]);
+  });
+});
+
+describe("workspacePatterns", () => {
+  test("reads the array form", () => {
+    expect(workspacePatterns({ workspaces: ["packages/*"] })).toEqual(["packages/*"]);
+  });
+
+  test("reads the object form a catalog needs", () => {
+    const manifest = {
+      workspaces: { packages: ["apps/*", "packages/*"], catalog: { typescript: "^7.0.0" } },
+    };
+    expect(workspacePatterns(manifest)).toEqual(["apps/*", "packages/*"]);
+  });
+
+  test("is empty for a single package", () => {
+    expect(workspacePatterns({ name: "solo" })).toEqual([]);
+    expect(workspacePatterns({ workspaces: { catalog: {} } })).toEqual([]);
+    expect(workspacePatterns({ workspaces: null })).toEqual([]);
   });
 });

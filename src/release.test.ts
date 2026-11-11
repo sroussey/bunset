@@ -123,6 +123,32 @@ describe("a breaking change that touched no package directory", () => {
   }, 20_000);
 });
 
+describe("a root declaring workspaces in object form", () => {
+  test("is released as a workspace, each package with its own commits", async () => {
+    // Bun moves the globs under workspaces.packages once a catalog sits beside
+    // them; reading only the array form crashed on it.
+    const dir = await makeRepo({
+      root: {
+        name: "root",
+        version: "1.4.0",
+        private: true,
+        workspaces: { packages: ["packages/*"], catalog: { typescript: "^7.0.0" } },
+      },
+      packages: {
+        a: { name: "pkg-a", version: "1.4.0" },
+        b: { name: "pkg-b", version: "1.4.0" },
+      },
+      tag: "v1.4.0",
+      commits: [{ message: "feat: a gains a thing", files: { "packages/a/x.ts": "1" } }],
+    });
+
+    const { code, out } = await run(dir, "--auto", "--all", "--per-package-tags");
+    expect(code).toBe(0);
+    expect(out).toContain("pkg-a: 1.4.0 → 1.5.0");
+    expect(out).not.toContain("pkg-b: 1.4.0 →");
+  }, 20_000);
+});
+
 describe("the workspace root's own version", () => {
   test("takes the strongest bump of the release, not whichever package sorted first", async () => {
     // Package order comes from a glob, so reading plans[0] made the root's

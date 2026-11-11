@@ -33,8 +33,10 @@ import {
   setPackageVersion,
   assertReleaseCarriesBreakingChanges,
   escapesCaretRange,
+  reachesFeatureSlot,
   findBreakingCommits,
   breakingBumpSlot,
+  featureBumpSlot,
   deriveBump,
   maxBump,
   BreakingChangeBumpError,
@@ -207,17 +209,29 @@ function packageHasChanges(groups: GroupedCommits): boolean {
   return COMMIT_TYPES.some((type) => groups[type].length > 0);
 }
 
+/** The manifest changes that need the break slot. */
+function breakingSurface(plan: PackagePlan): SurfaceChange[] {
+  return plan.surfaceChanges.filter((c) => c.severity === "breaking");
+}
+
+/** The manifest changes that need only the feature slot. */
+function featureSurface(plan: PackagePlan): SurfaceChange[] {
+  return plan.surfaceChanges.filter((c) => c.severity === "feature");
+}
+
 /**
  * What `--auto` derives for a package: the bump its commits call for, raised to
- * the break slot when the manifest itself shows a break no commit declared.
+ * the slot the manifest's own changes need — the break slot for a break no
+ * commit declared, the feature slot for a runtime floor raised within its line.
  * Under an explicit bump the same evidence is a refusal instead — the user
  * asserted a number, and silently overriding it would be the failure this
  * check exists to catch.
  */
 function evidenceBump(plan: PackagePlan, version: string): BumpType {
   const fromCommits = deriveBump(releaseCommits(plan), version);
-  if (plan.surfaceChanges.length === 0) return fromCommits;
-  return maxBump(fromCommits, breakingBumpSlot(version));
+  if (breakingSurface(plan).length > 0) return maxBump(fromCommits, breakingBumpSlot(version));
+  if (featureSurface(plan).length > 0) return maxBump(fromCommits, featureBumpSlot(version));
+  return fromCommits;
 }
 
 // A package with nothing in it is skipped whenever the release can express
@@ -366,10 +380,18 @@ for (const plan of plans) {
     // Under an explicit bump these findings are a refusal that names them. Under
     // --auto they raise the bump instead, so say so rather than leaving the
     // larger version number unexplained.
-    if (plan.surfaceChanges.length > 0) {
+    const breaking = breakingSurface(plan);
+    const features = featureSurface(plan);
+    if (breaking.length > 0) {
       console.log(
-        `${describeSurfaceChanges(plan.pkg.name, plan.surfaceChanges)}\n` +
+        `${describeSurfaceChanges(plan.pkg.name, breaking)}\n` +
           `  counted as breaking, so the bump is at least the break slot.`,
+      );
+    }
+    if (features.length > 0) {
+      console.log(
+        `${describeSurfaceChanges(plan.pkg.name, features)}\n` +
+          `  a runtime floor raised within its line, so the bump is at least the feature slot.`,
       );
     }
   }
@@ -420,13 +442,21 @@ if (bumpFailures.length > 0) {
 // and no commit said so. This is what a `!` marker would have caught if written.
 const surfaceFailures: string[] = [];
 for (const plan of plans) {
-  if (plan.surfaceChanges.length === 0) continue;
   const oldVersion = plan.pkg.version ?? "0.0.0";
-  if (escapesCaretRange(oldVersion, plan.newVersion)) continue;
-  surfaceFailures.push(
-    `${describeSurfaceChanges(plan.pkg.name, plan.surfaceChanges)}\n` +
-      `  (${oldVersion} \u2192 ${plan.newVersion} stays inside a "^${oldVersion}" range)`,
-  );
+  const breaking = breakingSurface(plan);
+  if (breaking.length > 0 && !escapesCaretRange(oldVersion, plan.newVersion)) {
+    surfaceFailures.push(
+      `${describeSurfaceChanges(plan.pkg.name, breaking)}\n` +
+        `  (${oldVersion} \u2192 ${plan.newVersion} stays inside a "^${oldVersion}" range)`,
+    );
+  }
+  const features = featureSurface(plan);
+  if (features.length > 0 && !reachesFeatureSlot(oldVersion, plan.newVersion)) {
+    surfaceFailures.push(
+      `${describeSurfaceChanges(plan.pkg.name, features)}\n` +
+        `  (${oldVersion} \u2192 ${plan.newVersion} is a patch; a raised runtime floor needs at least a minor)`,
+    );
+  }
 }
 if (surfaceFailures.length > 0) {
   console.error(

@@ -29,10 +29,40 @@ describe("engines", () => {
     ]);
   });
 
-  test("a raised floor is a break", () => {
+  const severityOf = (before: string, after: string): string[] =>
+    diffManifestSurface(
+      { name: "p", engines: { bun: before } },
+      { name: "p", engines: { bun: after } },
+    ).map((c) => `${c.kind}:${c.severity}`);
+
+  test("a floor raised within its major is a feature, not a break", () => {
+    // bunset 2.0.0: engines.bun ^1.3 -> ^1.4 forced a major for a consumer
+    // already on Bun 1.
+    expect(severityOf("^1.3", "^1.4")).toEqual(["engines-raised:feature"]);
+    expect(severityOf(">=1.3.0", ">=1.3.5")).toEqual(["engines-raised:feature"]);
+  });
+
+  test("a floor raised past its major is a break", () => {
+    expect(severityOf("^1.4", "^2.0")).toEqual(["engines-raised:breaking"]);
     expect(
-      kinds({ name: "p", engines: { bun: "^1.3" } }, { name: "p", engines: { bun: "^1.4" } }),
-    ).toEqual(["engines-raised"]);
+      diffManifestSurface(
+        { name: "p", engines: { node: ">=22" } },
+        { name: "p", engines: { node: ">=24" } },
+      ).map((c) => c.severity),
+    ).toEqual(["breaking"]);
+  });
+
+  test("on a 0.x runtime the minor is the line", () => {
+    expect(severityOf("^0.3", "^0.4")).toEqual(["engines-raised:breaking"]);
+    expect(severityOf("^0.3.1", "^0.3.4")).toEqual(["engines-raised:feature"]);
+  });
+
+  test("a floor where there was none stays a break", () => {
+    expect(
+      diffManifestSurface({ name: "p" }, { name: "p", engines: { bun: "^1.4" } }).map(
+        (c) => c.severity,
+      ),
+    ).toEqual(["breaking"]);
   });
 
   test("a widened floor is not", () => {

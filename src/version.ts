@@ -90,6 +90,18 @@ export function featureBumpSlot(currentVersion: string): BumpType {
 }
 
 /**
+ * Whether moving from one version to another reaches the feature slot
+ * ({@link featureBumpSlot}): past the patch on a released line, and any move at
+ * all on a 0.x line, where the feature slot is the patch.
+ */
+export function reachesFeatureSlot(from: string, to: string): boolean {
+  const [fromMajor, fromMinor] = parseSemver(from);
+  const [toMajor, toMinor] = parseSemver(to);
+  if (fromMajor === 0) return compareSemver(to, from) > 0;
+  return toMajor > fromMajor || toMinor > fromMinor;
+}
+
+/**
  * A `!` marker (or `BREAKING CHANGE:` footer) rules out any bump below the
  * break slot for the version being released: publishing one would hide the
  * break from every consumer's version range.

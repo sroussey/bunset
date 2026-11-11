@@ -62,11 +62,13 @@ export interface UpdatedDependency {
 }
 
 /**
- * An incompatible change found by comparing a package's manifest against the
- * one at the last release tag. These are breaks a commit message can omit and
- * a `.d.ts` diff would need a TypeScript parser to see.
+ * A change found by comparing a package's manifest against the one at the last
+ * release tag — what a commit message can omit and a `.d.ts` diff would need a
+ * TypeScript parser to see. A `breaking` one needs the break slot; a `feature`
+ * one (a runtime floor raised within its major) needs the feature slot.
  */
 export interface SurfaceChange {
+  severity: "breaking" | "feature";
   kind:
     | "entry-point-removed"
     | "export-removed"

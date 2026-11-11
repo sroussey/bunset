@@ -386,3 +386,48 @@ describe("a 0.x line under --auto", () => {
     expect(out).toContain("solo: 0.0.4 → 0.1.0 (minor)");
   }, 20_000);
 });
+
+describe("a raised runtime floor", () => {
+  async function releaseWith(before: string, after: string, ...args: string[]) {
+    const dir = await makeRepo({
+      root: { name: "solo", version: "1.1.2", main: "index.js", engines: { bun: before } },
+      tag: "v1.1.2",
+      commits: [
+        {
+          message: "chore: require a newer bun",
+          files: {
+            "package.json": JSON.stringify({
+              name: "solo",
+              version: "1.1.2",
+              main: "index.js",
+              engines: { bun: after },
+            }),
+          },
+        },
+      ],
+    });
+    return run(dir, ...args);
+  }
+
+  test("within its major takes the minor under --auto", async () => {
+    const { code, out } = await releaseWith("^1.3", "^1.4", "--auto", "--all");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 1.1.2 → 1.2.0 (minor)");
+  }, 20_000);
+
+  test("past its major takes the major under --auto", async () => {
+    const { code, out } = await releaseWith("^1.4", "^2.0", "--auto", "--all");
+    expect(code).toBe(0);
+    expect(out).toContain("solo: 1.1.2 → 2.0.0 (major)");
+  }, 20_000);
+
+  test("within its major refuses an explicit patch and accepts a minor", async () => {
+    const patch = await releaseWith("^1.3", "^1.4", "--patch", "--all");
+    expect(patch.code).toBe(1);
+    expect(patch.out).toContain("a raised runtime floor needs at least a minor");
+
+    const minor = await releaseWith("^1.3", "^1.4", "--minor", "--all");
+    expect(minor.code).toBe(0);
+    expect(minor.out).toContain("solo: 1.1.2 → 1.2.0");
+  }, 20_000);
+});

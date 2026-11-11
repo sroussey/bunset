@@ -90,8 +90,13 @@ consumer resolves against:
 - the last entry point — no `exports`, `main` or `module` left
 - a `bin` entry
 - a runtime floor: an `engines` field that was absent before, or whose minimum
-  version moved up
+  moved past its major (`>=22` → `>=24`, `^1` → `^2`)
 - `"private": true` on a package that was publishable at the last tag
+
+A minimum raised within its major (`^1.3` → `^1.4`) leaves consumers on a
+runtime line they already run, so it needs only the feature slot: `--auto`
+takes a minor for it, and an explicit patch is refused. On a 0.x runtime the
+minor is the line, as it is for a package.
 
 This is a manifest diff, not an API diff — a changed function signature is
 invisible to it, and catching those needs a TypeScript parser bunset does not
